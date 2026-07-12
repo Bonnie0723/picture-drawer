@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Picture Drawer",
   "short_name": "Pic Drawer",
-  "description": "A cute pixel photo organizer with camera and album import, editable dropdown options, filters and date-range storage cleanup.",
+  "description": "Picture Drawer v8: a cute pixel photo organizer with full-image preview, editable dropdown options, filters and date-range storage cleanup.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
