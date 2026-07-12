@@ -1,0 +1,1409 @@
+(function () {
+  'use strict';
+
+  const DB_NAME = 'tujika_db';
+  const DB_VERSION = 1;
+  const STORE_NAME = 'entries';
+  const LEGACY_KEY = 'tujika_entries';
+  const CATEGORY_KEY = 'picture_drawer_categories_v1';
+  const STYLE_KEY = 'picture_drawer_styles_v1';
+  const STALL_KEY = 'picture_drawer_stalls_v1';
+  const FORM_PREF_KEY = 'picture_drawer_form_pref_v1';
+  const RETENTION_KEY = 'picture_drawer_retention_days_v1';
+  const AUTO_CLEAN_LAST_KEY = 'picture_drawer_auto_clean_last_v1';
+  const DEFAULT_CATEGORIES = ['Minimal', 'Cute', 'Cartoon', 'INS'];
+  const DEFAULT_STYLES = ['Minimal', 'Cute', 'Cartoon', 'INS', 'Pink', 'Dark', 'Clear'];
+  const DEFAULT_STALLS = ['3A-108', '3A-107', '3B-205'];
+  const MAX_IMAGE_EDGE = 1600;
+  const JPEG_QUALITY = 0.84;
+
+  const $ = (id) => document.getElementById(id);
+
+  const imgArea = $('imgArea');
+  const cameraInput = $('cameraInput');
+  const albumInput = $('albumInput');
+  const cameraBtn = $('cameraBtn');
+  const albumBtn = $('albumBtn');
+  const preview = $('preview');
+  const placeholder = $('placeholder');
+  const categoryInput = $('category');
+  const styleInput = $('style');
+  const stallInput = $('stall');
+  const dateInput = $('date');
+  const saveBtn = $('saveBtn');
+  const clearBtn = $('clearBtn');
+  const entryList = $('entryList');
+  const entryCount = $('entryCount');
+  const categoryChips = $('categoryChips');
+  const categoryFilter = $('categoryFilter');
+  const stallFilter = $('stallFilter');
+  const styleFilter = $('styleFilter');
+  const dateFilter = $('dateFilter');
+  const resetFiltersBtn = $('resetFiltersBtn');
+  const filterStatus = $('filterStatus');
+  const manageCategoriesBtn = $('manageCategoriesBtn');
+  const manageStylesBtn = $('manageStylesBtn');
+  const manageStallsBtn = $('manageStallsBtn');
+  const editCategoriesLink = $('editCategoriesLink');
+  const categoryModal = $('categoryModal');
+  const closeCategoryModalBtn = $('closeCategoryModal');
+  const newCategoryInput = $('newCategoryInput');
+  const addCategoryBtn = $('addCategoryBtn');
+  const categoryManagerList = $('categoryManagerList');
+  const optionModal = $('optionModal');
+  const closeOptionModalBtn = $('closeOptionModal');
+  const styleOptionTab = $('styleOptionTab');
+  const stallOptionTab = $('stallOptionTab');
+  const newOptionInput = $('newOptionInput');
+  const addOptionBtn = $('addOptionBtn');
+  const optionManagerList = $('optionManagerList');
+  const openCleanupBtn = $('openCleanupBtn');
+  const cleanupModal = $('cleanupModal');
+  const closeCleanupModalBtn = $('closeCleanupModal');
+  const cleanupFrom = $('cleanupFrom');
+  const cleanupTo = $('cleanupTo');
+  const cleanupSummary = $('cleanupSummary');
+  const deleteRangeBtn = $('deleteRangeBtn');
+  const deleteAllBtn = $('deleteAllBtn');
+  const retentionDays = $('retentionDays');
+  const saveRetentionBtn = $('saveRetentionBtn');
+  const toast = $('toast');
+
+  let currentImageBlob = null;
+  let currentPreviewUrl = '';
+  let toastTimer = null;
+  let dbPromise = null;
+  let useMemoryStore = false;
+  let memoryEntries = [];
+  let memoryId = 1;
+  const objectUrls = new Set();
+  let allEntries = [];
+  let categories = loadCategoriesFromStorage();
+  let styleOptions = loadOptionList(STYLE_KEY, DEFAULT_STYLES);
+  let stallOptions = loadOptionList(STALL_KEY, DEFAULT_STALLS);
+  let activeOptionType = 'style';
+
+  function localDateValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function setToday() {
+    dateInput.value = localDateValue(new Date());
+  }
+
+  function showToast(message) {
+    window.clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.classList.add('show');
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function normalizeText(value) {
+    return String(value || '').trim();
+  }
+
+  function normalizeCategoryName(value) {
+    return normalizeText(value).replace(/\s+/g, ' ').slice(0, 24);
+  }
+
+  function dedupeCategories(items) {
+    const seen = new Set();
+    const result = [];
+    items.forEach((item) => {
+      const name = normalizeCategoryName(item);
+      const key = name.toLocaleLowerCase();
+      if (!name || seen.has(key)) return;
+      seen.add(key);
+      result.push(name);
+    });
+    return result;
+  }
+
+  function loadCategoriesFromStorage() {
+    try {
+      const raw = localStorage.getItem(CATEGORY_KEY);
+      if (!raw) return [...DEFAULT_CATEGORIES];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [...DEFAULT_CATEGORIES];
+      return dedupeCategories(parsed);
+    } catch (_) {
+      return [...DEFAULT_CATEGORIES];
+    }
+  }
+
+  function saveCategoriesToStorage() {
+    try {
+      localStorage.setItem(CATEGORY_KEY, JSON.stringify(categories));
+    } catch (_) {
+      showToast('Category settings could not be saved');
+    }
+  }
+
+  function normalizeOptionName(value) {
+    return normalizeText(value).replace(/\s+/g, ' ').slice(0, 40);
+  }
+
+  function dedupeOptions(items) {
+    const seen = new Set();
+    const result = [];
+    items.forEach((item) => {
+      const name = normalizeOptionName(item);
+      const key = name.toLocaleLowerCase();
+      if (!name || seen.has(key)) return;
+      seen.add(key);
+      result.push(name);
+    });
+    return result;
+  }
+
+  function loadOptionList(key, defaults) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [...defaults];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? dedupeOptions(parsed) : [...defaults];
+    } catch (_) {
+      return [...defaults];
+    }
+  }
+
+  function saveOptionList(key, items) {
+    try {
+      localStorage.setItem(key, JSON.stringify(items));
+    } catch (_) {
+      showToast('Option settings could not be saved');
+    }
+  }
+
+  function saveFormPreferences() {
+    try {
+      localStorage.setItem(FORM_PREF_KEY, JSON.stringify({
+        category: categoryInput.value,
+        style: styleInput.value,
+        stall: stallInput.value
+      }));
+    } catch (_) {}
+  }
+
+  function loadFormPreferences() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(FORM_PREF_KEY) || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function applyFormPreferences() {
+    const prefs = loadFormPreferences();
+    if (categories.includes(prefs.category)) categoryInput.value = prefs.category;
+    if (styleOptions.includes(prefs.style)) styleInput.value = prefs.style;
+    if (stallOptions.includes(prefs.stall)) stallInput.value = prefs.stall;
+  }
+
+  function openDatabase() {
+    if (dbPromise) return dbPromise;
+
+    dbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+          store.createIndex('ts', 'ts');
+        }
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Could not open local database'));
+      request.onblocked = () => reject(new Error('Database upgrade is blocked by another tab'));
+    });
+
+    return dbPromise;
+  }
+
+  async function getEntries() {
+    if (useMemoryStore) {
+      return memoryEntries.map((entry) => ({ ...entry })).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    }
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const request = tx.objectStore(STORE_NAME).getAll();
+      request.onsuccess = () => {
+        const rows = Array.isArray(request.result) ? request.result : [];
+        rows.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        resolve(rows);
+      };
+      request.onerror = () => reject(request.error || new Error('Could not read records'));
+    });
+  }
+
+  async function addEntry(entry) {
+    if (useMemoryStore) {
+      const saved = { ...entry, id: memoryId++ };
+      memoryEntries.push(saved);
+      return saved.id;
+    }
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const request = tx.objectStore(STORE_NAME).add(entry);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Could not save record'));
+    });
+  }
+
+  async function putEntry(entry) {
+    if (useMemoryStore) {
+      const index = memoryEntries.findIndex((item) => item.id === entry.id);
+      if (index >= 0) memoryEntries[index] = { ...entry };
+      return entry.id;
+    }
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const request = tx.objectStore(STORE_NAME).put(entry);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Could not update record'));
+    });
+  }
+
+  async function deleteEntry(id) {
+    if (useMemoryStore) {
+      memoryEntries = memoryEntries.filter((entry) => entry.id !== id);
+      return;
+    }
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const request = tx.objectStore(STORE_NAME).delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error || new Error('Could not delete record'));
+    });
+  }
+
+  async function deleteEntriesByIds(ids) {
+    const uniqueIds = [...new Set(ids)].filter((id) => id !== undefined && id !== null);
+    if (uniqueIds.length === 0) return 0;
+    if (useMemoryStore) {
+      const idSet = new Set(uniqueIds);
+      const before = memoryEntries.length;
+      memoryEntries = memoryEntries.filter((entry) => !idSet.has(entry.id));
+      return before - memoryEntries.length;
+    }
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      uniqueIds.forEach((id) => store.delete(id));
+      tx.oncomplete = () => resolve(uniqueIds.length);
+      tx.onerror = () => reject(tx.error || new Error('Could not delete records'));
+      tx.onabort = () => reject(tx.error || new Error('Delete was cancelled'));
+    });
+  }
+
+  async function clearAllEntries() {
+    if (useMemoryStore) {
+      memoryEntries = [];
+      return;
+    }
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const request = tx.objectStore(STORE_NAME).clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error || new Error('Could not clear records'));
+    });
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    if (parts.length !== 2) throw new Error('Invalid legacy image');
+    const mimeMatch = parts[0].match(/data:([^;]+)/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const binary = atob(parts[1]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  async function migrateLegacyEntries() {
+    if (useMemoryStore) return;
+    let raw = null;
+    try {
+      raw = localStorage.getItem(LEGACY_KEY);
+    } catch (_) {
+      return;
+    }
+    if (!raw) return;
+
+    let legacyRows;
+    try {
+      legacyRows = JSON.parse(raw);
+    } catch (_) {
+      try { localStorage.removeItem(LEGACY_KEY); } catch (_) {}
+      showToast('Skipped damaged legacy data');
+      return;
+    }
+
+    if (!Array.isArray(legacyRows) || legacyRows.length === 0) {
+      try { localStorage.removeItem(LEGACY_KEY); } catch (_) {}
+      return;
+    }
+
+    const existing = await getEntries();
+    if (existing.length > 0) {
+      try { localStorage.removeItem(LEGACY_KEY); } catch (_) {}
+      return;
+    }
+
+    let migrated = 0;
+    for (const row of legacyRows) {
+      try {
+        if (!row || typeof row.img !== 'string') continue;
+        const image = dataUrlToBlob(row.img);
+        await addEntry({
+          image,
+          category: '',
+          style: normalizeText(row.style).slice(0, 40),
+          stall: normalizeText(row.stall).slice(0, 40),
+          date: normalizeText(row.date),
+          ts: Number(row.ts) || Date.now()
+        });
+        migrated += 1;
+      } catch (_) {
+        // Continue when one legacy row is damaged.
+      }
+    }
+
+    try { localStorage.removeItem(LEGACY_KEY); } catch (_) {}
+    if (migrated > 0) showToast(`Migrated ${migrated} old records`);
+  }
+
+  function revokeCurrentPreview() {
+    if (currentPreviewUrl) {
+      URL.revokeObjectURL(currentPreviewUrl);
+      currentPreviewUrl = '';
+    }
+  }
+
+  function clearRenderedObjectUrls() {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    objectUrls.clear();
+  }
+
+  function setPreview(blob) {
+    revokeCurrentPreview();
+    currentImageBlob = blob;
+    currentPreviewUrl = URL.createObjectURL(blob);
+    preview.src = currentPreviewUrl;
+    preview.hidden = false;
+    placeholder.hidden = true;
+    imgArea.classList.add('has-img');
+  }
+
+  function resetImage() {
+    revokeCurrentPreview();
+    currentImageBlob = null;
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    placeholder.hidden = false;
+    imgArea.classList.remove('has-img');
+    cameraInput.value = '';
+    albumInput.value = '';
+  }
+
+  function clearForm() {
+    resetImage();
+    setToday();
+    categoryInput.value = categories[0] || '';
+    styleInput.value = styleOptions[0] || '';
+    stallInput.value = stallOptions[0] || '';
+    saveFormPreferences();
+  }
+
+  function loadImageElement(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Could not read image'));
+      };
+      image.src = url;
+    });
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Image compression failed'));
+      }, type, quality);
+    });
+  }
+
+  async function prepareImage(file) {
+    if (!file.type.startsWith('image/')) throw new Error('Please choose an image file');
+
+    let source;
+    let width;
+    let height;
+    let closeSource = null;
+
+    if ('createImageBitmap' in window) {
+      try {
+        source = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        width = source.width;
+        height = source.height;
+        closeSource = () => source.close();
+      } catch (_) {
+        source = await loadImageElement(file);
+        width = source.naturalWidth;
+        height = source.naturalHeight;
+      }
+    } else {
+      source = await loadImageElement(file);
+      width = source.naturalWidth;
+      height = source.naturalHeight;
+    }
+
+    if (!width || !height) throw new Error('Invalid image size');
+
+    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height));
+    const targetWidth = Math.max(1, Math.round(width * scale));
+    const targetHeight = Math.max(1, Math.round(height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error('This browser cannot process images');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+    ctx.drawImage(source, 0, 0, targetWidth, targetHeight);
+    if (closeSource) closeSource();
+
+    return canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY);
+  }
+
+  function option(value, label) {
+    const item = document.createElement('option');
+    item.value = value;
+    item.textContent = label;
+    return item;
+  }
+
+  function renderFormOptionSelect(select, values, emptyLabel) {
+    const selected = select.value;
+    const fragment = document.createDocumentFragment();
+    if (values.length === 0) fragment.appendChild(option('', emptyLabel));
+    values.forEach((value) => fragment.appendChild(option(value, value)));
+    select.replaceChildren(fragment);
+    select.value = values.includes(selected) ? selected : (values[0] || '');
+  }
+
+  function renderFormOptionControls() {
+    renderFormOptionSelect(styleInput, styleOptions, 'No styles');
+    renderFormOptionSelect(stallInput, stallOptions, 'No stalls');
+  }
+
+  function mergeOptionsFromEntries() {
+    const entryStyles = uniqueSortedValues(allEntries, 'style');
+    const entryStalls = uniqueSortedValues(allEntries, 'stall');
+    const mergedStyles = dedupeOptions([...styleOptions, ...entryStyles]);
+    const mergedStalls = dedupeOptions([...stallOptions, ...entryStalls]);
+    const stylesChanged = JSON.stringify(mergedStyles) !== JSON.stringify(styleOptions);
+    const stallsChanged = JSON.stringify(mergedStalls) !== JSON.stringify(stallOptions);
+    styleOptions = mergedStyles;
+    stallOptions = mergedStalls;
+    if (stylesChanged) saveOptionList(STYLE_KEY, styleOptions);
+    if (stallsChanged) saveOptionList(STALL_KEY, stallOptions);
+  }
+
+  function renderCategoryControls() {
+    const selectedFormCategory = categoryInput.value;
+    const selectedFilterCategory = categoryFilter.value;
+
+    categoryInput.replaceChildren();
+    if (categories.length === 0) {
+      categoryInput.appendChild(option('', 'Uncategorized'));
+    } else {
+      categories.forEach((name) => categoryInput.appendChild(option(name, name)));
+    }
+    categoryInput.value = categories.includes(selectedFormCategory)
+      ? selectedFormCategory
+      : (categories[0] || '');
+
+    const hasUncategorized = allEntries.some((entry) => !normalizeText(entry.category));
+    categoryFilter.replaceChildren(option('', 'All Categories'));
+    categories.forEach((name) => categoryFilter.appendChild(option(name, name)));
+    if (hasUncategorized) categoryFilter.appendChild(option('__uncategorized__', 'Uncategorized'));
+    categoryFilter.value = [...categoryFilter.options].some((item) => item.value === selectedFilterCategory)
+      ? selectedFilterCategory
+      : '';
+
+    categoryChips.replaceChildren();
+    const chipData = [{ value: '', label: 'All' }, ...categories.map((name) => ({ value: name, label: name }))];
+    if (hasUncategorized) chipData.push({ value: '__uncategorized__', label: 'Uncategorized' });
+
+    chipData.forEach(({ value, label }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `category-chip${categoryFilter.value === value ? ' active' : ''}`;
+      button.textContent = value === '' ? '♥ All' : label;
+      button.dataset.value = value;
+      button.addEventListener('click', () => {
+        categoryFilter.value = value;
+        renderEntries();
+      });
+      categoryChips.appendChild(button);
+    });
+
+    renderCategoryManager();
+  }
+
+  function renderCategoryManager() {
+    categoryManagerList.replaceChildren();
+
+    if (categories.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No categories yet';
+      categoryManagerList.appendChild(empty);
+      return;
+    }
+
+    categories.forEach((name, index) => {
+      const row = document.createElement('div');
+      row.className = 'category-row';
+
+      const input = document.createElement('input');
+      input.className = 'category-name';
+      input.value = name;
+      input.maxLength = 24;
+      input.setAttribute('aria-label', `Rename ${name}`);
+      input.addEventListener('change', async () => {
+        const nextName = normalizeCategoryName(input.value);
+        if (nextName === name) return;
+        if (!nextName) {
+          input.value = name;
+          showToast('Category name cannot be empty');
+          return;
+        }
+        if (categories.some((item) => item.toLocaleLowerCase() === nextName.toLocaleLowerCase() && item !== name)) {
+          input.value = name;
+          showToast('That category already exists');
+          return;
+        }
+        await renameCategory(name, nextName);
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') input.blur();
+      });
+
+      const up = document.createElement('button');
+      up.type = 'button';
+      up.className = 'row-action';
+      up.textContent = '↑';
+      up.disabled = index === 0;
+      up.setAttribute('aria-label', `Move ${name} up`);
+      up.addEventListener('click', () => moveCategory(index, -1));
+
+      const down = document.createElement('button');
+      down.type = 'button';
+      down.className = 'row-action';
+      down.textContent = '↓';
+      down.disabled = index === categories.length - 1;
+      down.setAttribute('aria-label', `Move ${name} down`);
+      down.addEventListener('click', () => moveCategory(index, 1));
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'row-action delete';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `Delete ${name}`);
+      remove.addEventListener('click', () => deleteCategory(name));
+
+      row.append(input, up, down, remove);
+      categoryManagerList.appendChild(row);
+    });
+  }
+
+  function moveCategory(index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= categories.length) return;
+    [categories[index], categories[target]] = [categories[target], categories[index]];
+    saveCategoriesToStorage();
+    renderCategoryControls();
+  }
+
+  async function renameCategory(oldName, newName) {
+    try {
+      categories = categories.map((name) => (name === oldName ? newName : name));
+      saveCategoriesToStorage();
+      const affected = allEntries.filter((entry) => normalizeText(entry.category) === oldName);
+      for (const entry of affected) {
+        await putEntry({ ...entry, category: newName });
+      }
+      await loadEntries();
+      showToast(`Renamed to ${newName}`);
+    } catch (error) {
+      categories = loadCategoriesFromStorage();
+      renderCategoryControls();
+      showToast(error.message || 'Rename failed');
+    }
+  }
+
+  async function deleteCategory(name) {
+    const usedCount = allEntries.filter((entry) => normalizeText(entry.category) === name).length;
+    const message = usedCount > 0
+      ? `Delete “${name}”? ${usedCount} photo${usedCount === 1 ? '' : 's'} will become Uncategorized.`
+      : `Delete “${name}”?`;
+    if (!window.confirm(message)) return;
+
+    try {
+      categories = categories.filter((item) => item !== name);
+      saveCategoriesToStorage();
+      const affected = allEntries.filter((entry) => normalizeText(entry.category) === name);
+      for (const entry of affected) {
+        await putEntry({ ...entry, category: '' });
+      }
+      await loadEntries();
+      showToast('Category deleted');
+    } catch (error) {
+      categories = loadCategoriesFromStorage();
+      renderCategoryControls();
+      showToast(error.message || 'Delete failed');
+    }
+  }
+
+  function addCategory() {
+    const name = normalizeCategoryName(newCategoryInput.value);
+    if (!name) {
+      showToast('Enter a category name');
+      return;
+    }
+    if (categories.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      showToast('That category already exists');
+      return;
+    }
+    categories.push(name);
+    saveCategoriesToStorage();
+    newCategoryInput.value = '';
+    renderCategoryControls();
+    categoryInput.value = name;
+    showToast('Category added');
+    newCategoryInput.focus();
+  }
+
+  function openCategoryModal() {
+    renderCategoryManager();
+    categoryModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => newCategoryInput.focus(), 0);
+  }
+
+  function closeCategoryModal() {
+    categoryModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function getOptionConfig(type = activeOptionType) {
+    if (type === 'stall') {
+      return {
+        label: 'Stall',
+        field: 'stall',
+        key: STALL_KEY,
+        values: stallOptions,
+        setValues(next) { stallOptions = next; }
+      };
+    }
+    return {
+      label: 'Style',
+      field: 'style',
+      key: STYLE_KEY,
+      values: styleOptions,
+      setValues(next) { styleOptions = next; }
+    };
+  }
+
+  function renderOptionManager() {
+    const config = getOptionConfig();
+    styleOptionTab.classList.toggle('active', activeOptionType === 'style');
+    stallOptionTab.classList.toggle('active', activeOptionType === 'stall');
+    newOptionInput.placeholder = `New ${config.label.toLowerCase()} option`;
+    optionManagerList.replaceChildren();
+
+    if (config.values.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = `No ${config.label.toLowerCase()} options yet`;
+      optionManagerList.appendChild(empty);
+      return;
+    }
+
+    config.values.forEach((name, index) => {
+      const row = document.createElement('div');
+      row.className = 'category-row';
+
+      const input = document.createElement('input');
+      input.className = 'category-name';
+      input.value = name;
+      input.maxLength = 40;
+      input.setAttribute('aria-label', `Rename ${config.label} ${name}`);
+      input.addEventListener('change', async () => {
+        const nextName = normalizeOptionName(input.value);
+        if (nextName === name) return;
+        if (!nextName) {
+          input.value = name;
+          showToast(`${config.label} cannot be empty`);
+          return;
+        }
+        if (config.values.some((item) => item.toLocaleLowerCase() === nextName.toLocaleLowerCase() && item !== name)) {
+          input.value = name;
+          showToast('That option already exists');
+          return;
+        }
+        await renameManagedOption(activeOptionType, name, nextName);
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') input.blur();
+      });
+
+      const up = document.createElement('button');
+      up.type = 'button';
+      up.className = 'row-action';
+      up.textContent = '↑';
+      up.disabled = index === 0;
+      up.addEventListener('click', () => moveManagedOption(activeOptionType, index, -1));
+
+      const down = document.createElement('button');
+      down.type = 'button';
+      down.className = 'row-action';
+      down.textContent = '↓';
+      down.disabled = index === config.values.length - 1;
+      down.addEventListener('click', () => moveManagedOption(activeOptionType, index, 1));
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'row-action delete';
+      remove.textContent = '×';
+      remove.addEventListener('click', () => deleteManagedOption(activeOptionType, name));
+
+      row.append(input, up, down, remove);
+      optionManagerList.appendChild(row);
+    });
+  }
+
+  function moveManagedOption(type, index, direction) {
+    const config = getOptionConfig(type);
+    const target = index + direction;
+    if (target < 0 || target >= config.values.length) return;
+    const next = [...config.values];
+    [next[index], next[target]] = [next[target], next[index]];
+    config.setValues(next);
+    saveOptionList(config.key, next);
+    renderFormOptionControls();
+    applyFormPreferences();
+    renderOptionManager();
+  }
+
+  async function renameManagedOption(type, oldName, newName) {
+    const config = getOptionConfig(type);
+    const wasSelected = config.field === 'style'
+      ? styleInput.value === oldName
+      : stallInput.value === oldName;
+    try {
+      const next = config.values.map((name) => (name === oldName ? newName : name));
+      config.setValues(next);
+      saveOptionList(config.key, next);
+      const affected = allEntries.filter((entry) => normalizeText(entry[config.field]) === oldName);
+      for (const entry of affected) {
+        await putEntry({ ...entry, [config.field]: newName });
+      }
+      await loadEntries();
+      if (wasSelected && config.field === 'style') styleInput.value = newName;
+      if (wasSelected && config.field === 'stall') stallInput.value = newName;
+      saveFormPreferences();
+      renderOptionManager();
+      showToast(`${config.label} renamed`);
+    } catch (error) {
+      styleOptions = loadOptionList(STYLE_KEY, DEFAULT_STYLES);
+      stallOptions = loadOptionList(STALL_KEY, DEFAULT_STALLS);
+      renderFormOptionControls();
+      renderOptionManager();
+      showToast(error.message || 'Rename failed');
+    }
+  }
+
+  async function deleteManagedOption(type, name) {
+    const config = getOptionConfig(type);
+    const affected = allEntries.filter((entry) => normalizeText(entry[config.field]) === name);
+    const detail = affected.length
+      ? ` ${affected.length} saved record${affected.length === 1 ? '' : 's'} will have an empty ${config.label.toLowerCase()} field.`
+      : '';
+    if (!window.confirm(`Delete “${name}”?${detail}`)) return;
+
+    try {
+      const next = config.values.filter((item) => item !== name);
+      config.setValues(next);
+      saveOptionList(config.key, next);
+      for (const entry of affected) {
+        await putEntry({ ...entry, [config.field]: '' });
+      }
+      await loadEntries();
+      renderOptionManager();
+      showToast(`${config.label} option deleted`);
+    } catch (error) {
+      styleOptions = loadOptionList(STYLE_KEY, DEFAULT_STYLES);
+      stallOptions = loadOptionList(STALL_KEY, DEFAULT_STALLS);
+      renderFormOptionControls();
+      renderOptionManager();
+      showToast(error.message || 'Delete failed');
+    }
+  }
+
+  function addManagedOption() {
+    const config = getOptionConfig();
+    const name = normalizeOptionName(newOptionInput.value);
+    if (!name) {
+      showToast(`Enter a ${config.label.toLowerCase()} option`);
+      return;
+    }
+    if (config.values.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      showToast('That option already exists');
+      return;
+    }
+    const next = [...config.values, name];
+    config.setValues(next);
+    saveOptionList(config.key, next);
+    newOptionInput.value = '';
+    renderFormOptionControls();
+    if (activeOptionType === 'style') styleInput.value = name;
+    else stallInput.value = name;
+    saveFormPreferences();
+    renderOptionManager();
+    showToast(`${config.label} option added`);
+    newOptionInput.focus();
+  }
+
+  function setActiveOptionType(type) {
+    activeOptionType = type === 'stall' ? 'stall' : 'style';
+    renderOptionManager();
+  }
+
+  function openOptionModal(type) {
+    setActiveOptionType(type);
+    optionModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => newOptionInput.focus(), 0);
+  }
+
+  function closeOptionModal() {
+    optionModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function uniqueSortedValues(entries, key) {
+    return [...new Set(entries.map((entry) => normalizeText(entry[key])).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }));
+  }
+
+  function fillFilterOptions(select, values, emptyLabel) {
+    const currentValue = select.value;
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(option('', emptyLabel));
+    values.forEach((value) => fragment.appendChild(option(value, value)));
+    select.replaceChildren(fragment);
+    select.value = values.includes(currentValue) ? currentValue : '';
+  }
+
+  function refreshFilterOptions() {
+    mergeOptionsFromEntries();
+    renderFormOptionControls();
+    fillFilterOptions(stallFilter, uniqueSortedValues(allEntries, 'stall'), 'All Stalls');
+    fillFilterOptions(styleFilter, uniqueSortedValues(allEntries, 'style'), 'All Styles');
+    renderCategoryControls();
+  }
+
+  function getFilteredEntries(entries) {
+    const selectedCategory = categoryFilter.value;
+    const selectedStall = stallFilter.value;
+    const selectedStyle = styleFilter.value;
+    const selectedDate = dateFilter.value;
+
+    return entries.filter((entry) => {
+      const entryCategory = normalizeText(entry.category);
+      if (selectedCategory === '__uncategorized__' && entryCategory) return false;
+      if (selectedCategory && selectedCategory !== '__uncategorized__' && entryCategory !== selectedCategory) return false;
+      if (selectedStall && normalizeText(entry.stall) !== selectedStall) return false;
+      if (selectedStyle && normalizeText(entry.style) !== selectedStyle) return false;
+      if (selectedDate && normalizeText(entry.date) !== selectedDate) return false;
+      return true;
+    });
+  }
+
+  function hasActiveFilters() {
+    return Boolean(categoryFilter.value || stallFilter.value || styleFilter.value || dateFilter.value);
+  }
+
+  function updateFilterStatus(filteredCount, totalCount) {
+    const activeLabels = [];
+    if (categoryFilter.value) {
+      activeLabels.push(`Category: ${categoryFilter.value === '__uncategorized__' ? 'Uncategorized' : categoryFilter.value}`);
+    }
+    if (stallFilter.value) activeLabels.push(`Stall: ${stallFilter.value}`);
+    if (styleFilter.value) activeLabels.push(`Style: ${styleFilter.value}`);
+    if (dateFilter.value) activeLabels.push(`Date: ${dateFilter.value}`);
+
+    filterStatus.textContent = activeLabels.length
+      ? `${activeLabels.join(' · ')} · ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
+      : `Showing all ${totalCount} record${totalCount === 1 ? '' : 's'}`;
+  }
+
+  function makeTag(text, className) {
+    const tag = document.createElement('span');
+    tag.className = `tag${className ? ` ${className}` : ''}`;
+    tag.textContent = text || 'Uncategorized';
+    return tag;
+  }
+
+  function renderEmptyState(isFiltered) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = isFiltered
+      ? 'No matching photos · try another filter ⌕'
+      : 'No photos yet · add your first one ✦';
+    entryList.appendChild(empty);
+  }
+
+  function renderEntries() {
+    clearRenderedObjectUrls();
+    entryList.replaceChildren();
+
+    const data = getFilteredEntries(allEntries);
+    const filtered = hasActiveFilters();
+    entryCount.textContent = filtered
+      ? `${data.length}/${allEntries.length} RECORDS`
+      : `${allEntries.length} RECORD${allEntries.length === 1 ? '' : 'S'}`;
+    updateFilterStatus(data.length, allEntries.length);
+
+    [...categoryChips.querySelectorAll('.category-chip')].forEach((chip) => {
+      chip.classList.toggle('active', chip.dataset.value === categoryFilter.value);
+    });
+
+    if (data.length === 0) {
+      renderEmptyState(filtered);
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    data.forEach((entry) => {
+      const card = document.createElement('article');
+      card.className = 'entry';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'entry-thumb';
+
+      const image = document.createElement('img');
+      image.alt = `${entry.category || entry.style || 'Photo'} record`;
+      image.loading = 'lazy';
+      const imageBlob = entry.image instanceof Blob ? entry.image : null;
+      if (imageBlob) {
+        const url = URL.createObjectURL(imageBlob);
+        objectUrls.add(url);
+        image.src = url;
+      }
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'delete-btn';
+      deleteButton.type = 'button';
+      deleteButton.setAttribute('aria-label', `Delete record from ${entry.date || 'unknown date'}`);
+      deleteButton.textContent = '×';
+      deleteButton.addEventListener('click', async () => {
+        if (!window.confirm('Delete this photo record?')) return;
+        deleteButton.disabled = true;
+        try {
+          await deleteEntry(entry.id);
+          await loadEntries();
+          showToast('Record deleted');
+        } catch (error) {
+          deleteButton.disabled = false;
+          showToast(error.message || 'Delete failed');
+        }
+      });
+
+      thumb.append(image, deleteButton);
+
+      const info = document.createElement('div');
+      info.className = 'entry-info';
+
+      const categoryRow = document.createElement('div');
+      categoryRow.className = 'tag-row';
+      categoryRow.appendChild(makeTag(normalizeText(entry.category) || 'Uncategorized', 'category'));
+
+      const detailRow = document.createElement('div');
+      detailRow.className = 'tag-row';
+      detailRow.appendChild(makeTag(entry.style || 'No style'));
+      detailRow.appendChild(makeTag(entry.stall || 'No stall', 'stall'));
+
+      const date = document.createElement('div');
+      date.className = 'entry-date';
+      date.textContent = `▦ ${entry.date || 'No date'}`;
+
+      info.append(categoryRow, detailRow, date);
+      card.append(thumb, info);
+      fragment.appendChild(card);
+    });
+
+    entryList.appendChild(fragment);
+  }
+
+  async function loadEntries() {
+    try {
+      allEntries = await getEntries();
+      refreshFilterOptions();
+      renderEntries();
+    } catch (error) {
+      allEntries = [];
+      entryList.replaceChildren();
+      renderEmptyState(false);
+      entryCount.textContent = 'ERROR';
+      filterStatus.textContent = 'Filters unavailable';
+      showToast(error.message || 'Could not read records');
+    }
+  }
+
+  function effectiveEntryDate(entry) {
+    const value = normalizeText(entry.date);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const timestamp = Number(entry.ts);
+    return Number.isFinite(timestamp) ? localDateValue(new Date(timestamp)) : '';
+  }
+
+  function entriesInDateRange(from, to) {
+    if (!from || !to || from > to) return [];
+    return allEntries.filter((entry) => {
+      const date = effectiveEntryDate(entry);
+      return date && date >= from && date <= to;
+    });
+  }
+
+  function formatBytes(bytes) {
+    const value = Number(bytes) || 0;
+    if (value < 1024 * 1024) return `${Math.max(0, value / 1024).toFixed(1)} KB`;
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function totalStoredBytes(entries = allEntries) {
+    return entries.reduce((sum, entry) => {
+      const image = entry.image instanceof Blob ? entry.image : null;
+      return sum + (image ? image.size : 0);
+    }, 0);
+  }
+
+  function updateCleanupSummary() {
+    const from = cleanupFrom.value;
+    const to = cleanupTo.value;
+    const selected = entriesInDateRange(from, to);
+    const totalText = `${allEntries.length} saved · ${formatBytes(totalStoredBytes())}`;
+    if (!from || !to) {
+      cleanupSummary.textContent = `Choose both dates · ${totalText}`;
+      deleteRangeBtn.disabled = true;
+      return;
+    }
+    if (from > to) {
+      cleanupSummary.textContent = `Start date must be before end date · ${totalText}`;
+      deleteRangeBtn.disabled = true;
+      return;
+    }
+    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected · ${formatBytes(totalStoredBytes(selected))} · ${totalText}`;
+    deleteRangeBtn.disabled = selected.length === 0;
+  }
+
+  function loadRetentionSetting() {
+    try {
+      const value = Number(localStorage.getItem(RETENTION_KEY) || 0);
+      return [0, 30, 60, 90, 180].includes(value) ? value : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  function openCleanupModal() {
+    const dates = allEntries.map(effectiveEntryDate).filter(Boolean).sort();
+    cleanupFrom.value = dates[0] || localDateValue(new Date());
+    cleanupTo.value = dates[dates.length - 1] || localDateValue(new Date());
+    retentionDays.value = String(loadRetentionSetting());
+    updateCleanupSummary();
+    cleanupModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCleanupModal() {
+    cleanupModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  async function deleteSelectedRange() {
+    const from = cleanupFrom.value;
+    const to = cleanupTo.value;
+    const matches = entriesInDateRange(from, to);
+    if (!from || !to || from > to || matches.length === 0) {
+      updateCleanupSummary();
+      return;
+    }
+    if (!window.confirm(`Delete ${matches.length} photo record${matches.length === 1 ? '' : 's'} from ${from} through ${to}?`)) return;
+    deleteRangeBtn.disabled = true;
+    try {
+      await deleteEntriesByIds(matches.map((entry) => entry.id));
+      await loadEntries();
+      updateCleanupSummary();
+      showToast(`${matches.length} records deleted`);
+    } catch (error) {
+      showToast(error.message || 'Range cleanup failed');
+    } finally {
+      updateCleanupSummary();
+    }
+  }
+
+  async function deleteEveryRecord() {
+    if (allEntries.length === 0) return;
+    if (!window.confirm(`Delete all ${allEntries.length} saved photo records? This cannot be undone.`)) return;
+    deleteAllBtn.disabled = true;
+    try {
+      await clearAllEntries();
+      await loadEntries();
+      updateCleanupSummary();
+      showToast('All records deleted');
+    } catch (error) {
+      showToast(error.message || 'Delete all failed');
+    } finally {
+      deleteAllBtn.disabled = false;
+    }
+  }
+
+  function saveRetentionSetting() {
+    const days = Number(retentionDays.value) || 0;
+    try {
+      localStorage.setItem(RETENTION_KEY, String(days));
+      localStorage.removeItem(AUTO_CLEAN_LAST_KEY);
+    } catch (_) {}
+    showToast(days ? `Auto cleanup: keep ${days} days` : 'Auto cleanup turned off');
+  }
+
+  async function runAutoCleanup() {
+    const days = loadRetentionSetting();
+    if (!days || allEntries.length === 0) return 0;
+    const today = localDateValue(new Date());
+    try {
+      if (localStorage.getItem(AUTO_CLEAN_LAST_KEY) === today) return 0;
+    } catch (_) {}
+
+    const cutoffDate = new Date();
+    cutoffDate.setHours(12, 0, 0, 0);
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoff = localDateValue(cutoffDate);
+    const oldEntries = allEntries.filter((entry) => {
+      const date = effectiveEntryDate(entry);
+      return date && date < cutoff;
+    });
+
+    if (oldEntries.length > 0) {
+      await deleteEntriesByIds(oldEntries.map((entry) => entry.id));
+    }
+    try { localStorage.setItem(AUTO_CLEAN_LAST_KEY, today); } catch (_) {}
+    return oldEntries.length;
+  }
+
+  function openAlbumPicker() {
+    albumInput.value = '';
+    albumInput.click();
+  }
+
+  function openCameraPicker() {
+    cameraInput.value = '';
+    cameraInput.click();
+  }
+
+  async function handleSelectedPhoto(event) {
+    const input = event.currentTarget;
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    imgArea.setAttribute('aria-busy', 'true');
+    cameraBtn.disabled = true;
+    albumBtn.disabled = true;
+    try {
+      const compressed = await prepareImage(file);
+      setPreview(compressed);
+      showToast('Photo loaded');
+    } catch (error) {
+      showToast(error.message || 'Could not read photo');
+    } finally {
+      input.value = '';
+      cameraBtn.disabled = false;
+      albumBtn.disabled = false;
+      imgArea.removeAttribute('aria-busy');
+    }
+  }
+
+  imgArea.addEventListener('click', openAlbumPicker);
+  imgArea.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openAlbumPicker();
+    }
+  });
+  cameraBtn.addEventListener('click', openCameraPicker);
+  albumBtn.addEventListener('click', openAlbumPicker);
+  cameraInput.addEventListener('change', handleSelectedPhoto);
+  albumInput.addEventListener('change', handleSelectedPhoto);
+
+  saveBtn.addEventListener('click', async () => {
+    if (!currentImageBlob) {
+      showToast('Add a photo first');
+      return;
+    }
+
+    const category = normalizeText(categoryInput.value);
+    const style = normalizeText(styleInput.value);
+    const stall = normalizeText(stallInput.value);
+    const date = dateInput.value;
+
+    if (!style || !stall || !date) {
+      showToast('Choose Style, Stall and Date');
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+
+    try {
+      const newEntry = {
+        image: currentImageBlob,
+        category,
+        style,
+        stall,
+        date,
+        ts: Date.now()
+      };
+      const hiddenByCurrentFilters = hasActiveFilters() && getFilteredEntries([newEntry]).length === 0;
+      await addEntry(newEntry);
+      saveFormPreferences();
+      resetImage();
+      await loadEntries();
+      showToast(hiddenByCurrentFilters ? 'Saved · hidden by current filters' : 'Saved ✦');
+    } catch (error) {
+      if (error && error.name === 'QuotaExceededError') showToast('Device storage is full');
+      else showToast(error.message || 'Save failed');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save ✦';
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    clearForm();
+    showToast('Form cleared');
+  });
+
+  [categoryInput, styleInput, stallInput].forEach((control) => {
+    control.addEventListener('change', saveFormPreferences);
+  });
+
+  [categoryFilter, stallFilter, styleFilter, dateFilter].forEach((control) => {
+    control.addEventListener('change', renderEntries);
+  });
+
+  resetFiltersBtn.addEventListener('click', () => {
+    categoryFilter.value = '';
+    stallFilter.value = '';
+    styleFilter.value = '';
+    dateFilter.value = '';
+    renderEntries();
+    showToast('Filters reset');
+  });
+
+  manageCategoriesBtn.addEventListener('click', openCategoryModal);
+  editCategoriesLink.addEventListener('click', openCategoryModal);
+  closeCategoryModalBtn.addEventListener('click', closeCategoryModal);
+  categoryModal.addEventListener('click', (event) => {
+    if (event.target === categoryModal) closeCategoryModal();
+  });
+  addCategoryBtn.addEventListener('click', addCategory);
+  newCategoryInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') addCategory();
+  });
+
+  manageStylesBtn.addEventListener('click', () => openOptionModal('style'));
+  manageStallsBtn.addEventListener('click', () => openOptionModal('stall'));
+  closeOptionModalBtn.addEventListener('click', closeOptionModal);
+  optionModal.addEventListener('click', (event) => {
+    if (event.target === optionModal) closeOptionModal();
+  });
+  styleOptionTab.addEventListener('click', () => setActiveOptionType('style'));
+  stallOptionTab.addEventListener('click', () => setActiveOptionType('stall'));
+  addOptionBtn.addEventListener('click', addManagedOption);
+  newOptionInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') addManagedOption();
+  });
+
+  openCleanupBtn.addEventListener('click', openCleanupModal);
+  closeCleanupModalBtn.addEventListener('click', closeCleanupModal);
+  cleanupModal.addEventListener('click', (event) => {
+    if (event.target === cleanupModal) closeCleanupModal();
+  });
+  cleanupFrom.addEventListener('change', updateCleanupSummary);
+  cleanupTo.addEventListener('change', updateCleanupSummary);
+  deleteRangeBtn.addEventListener('click', deleteSelectedRange);
+  deleteAllBtn.addEventListener('click', deleteEveryRecord);
+  saveRetentionBtn.addEventListener('click', saveRetentionSetting);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (!categoryModal.hidden) closeCategoryModal();
+    if (!optionModal.hidden) closeOptionModal();
+    if (!cleanupModal.hidden) closeCleanupModal();
+  });
+
+  window.addEventListener('beforeunload', () => {
+    revokeCurrentPreview();
+    clearRenderedObjectUrls();
+  });
+
+  async function init() {
+    setToday();
+    renderCategoryControls();
+    renderFormOptionControls();
+    try {
+      await openDatabase();
+      await migrateLegacyEntries();
+    } catch (_) {
+      useMemoryStore = true;
+      dbPromise = null;
+      showToast('Preview mode · records reset after refresh');
+    }
+    await loadEntries();
+    applyFormPreferences();
+    const autoDeleted = await runAutoCleanup();
+    if (autoDeleted > 0) {
+      await loadEntries();
+      applyFormPreferences();
+      showToast(`Auto cleanup removed ${autoDeleted} old records`);
+    }
+  }
+
+  init();
+})();

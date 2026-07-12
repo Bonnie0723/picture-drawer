@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#15121d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Picture Drawer</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <style>
+    :root {
+      --bg: #12101a;
+      --panel: #211c2d;
+      --panel-2: #2a2437;
+      --field: #16121e;
+      --ink: #fff8f0;
+      --muted: #a79caf;
+      --line: #09070d;
+      --pink: #ff93b8;
+      --pink-soft: #ffd0df;
+      --mint: #98e7cb;
+      --yellow: #ffd85f;
+      --danger: #ff7e94;
+      --pixel-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+      --shadow: 5px 5px 0 var(--line);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding: max(18px, env(safe-area-inset-top)) 14px max(34px, env(safe-area-inset-bottom));
+      background:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        var(--bg);
+      background-size: 16px 16px;
+    }
+
+    button, input, select { font: inherit; }
+    button { appearance: none; -webkit-appearance: none; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid var(--yellow);
+      outline-offset: 3px;
+    }
+
+    .app-shell { width: min(100%, 680px); margin: 0 auto; }
+    .pixel-card { background: var(--panel); border: 3px solid var(--line); box-shadow: var(--shadow); }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-icon {
+      width: 64px;
+      height: 64px;
+      flex: 0 0 64px;
+      object-fit: cover;
+      image-rendering: pixelated;
+      border: 3px solid var(--line);
+      box-shadow: 4px 4px 0 var(--line);
+      border-radius: 12px;
+    }
+    .brand-copy { min-width: 0; }
+    h1 {
+      font-family: var(--pixel-font);
+      font-size: clamp(22px, 6vw, 34px);
+      line-height: 1;
+      letter-spacing: -1.4px;
+      white-space: nowrap;
+    }
+    .subtitle {
+      margin-top: 7px;
+      color: var(--pink);
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      letter-spacing: .3px;
+    }
+    .count-chip {
+      flex: 0 0 auto;
+      color: var(--line);
+      background: var(--mint);
+      border: 3px solid var(--line);
+      box-shadow: 4px 4px 0 var(--line);
+      padding: 9px 10px;
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .editor-card { padding: 15px; }
+    .img-area {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 210px;
+      position: relative;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      cursor: pointer;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%),
+        linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%),
+        var(--panel-2);
+      background-position: 0 0, 8px 8px;
+      background-size: 16px 16px;
+      border: 3px dashed var(--pink);
+      outline: 3px solid var(--line);
+      outline-offset: -3px;
+    }
+    .img-area.has-img { border-style: solid; border-color: var(--line); }
+    .img-area img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .img-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--pink-soft);
+      text-align: center;
+      pointer-events: none;
+      padding: 20px;
+    }
+    .upload-glyph { color: var(--pink); font-family: var(--pixel-font); font-size: 42px; line-height: 1; }
+    .placeholder-title { color: var(--pink); font-family: var(--pixel-font); font-size: 13px; font-weight: 900; }
+    .placeholder-tip { color: var(--muted); font-family: var(--pixel-font); font-size: 10px; }
+    .file-input-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .source-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .source-btn {
+      min-height: 44px;
+      border: 3px solid var(--line);
+      background: var(--field);
+      color: var(--ink);
+      box-shadow: 4px 4px 0 var(--line);
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .source-btn.album { background: var(--mint); color: #111019; }
+    .source-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--line); }
+
+    .fields { display: grid; gap: 11px; margin-top: 16px; }
+    .field {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+    .field label {
+      color: var(--ink);
+      font-family: var(--pixel-font);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .field-control, .category-select-wrap select {
+      width: 100%;
+      min-width: 0;
+      height: 45px;
+      color: var(--ink);
+      background: var(--field);
+      border: 3px solid var(--line);
+      border-radius: 0;
+      padding: 0 11px;
+      box-shadow: 3px 3px 0 var(--line);
+      outline: none;
+      font-size: 14px;
+    }
+    .field-control:focus, .category-select-wrap select:focus { border-color: var(--pink); }
+    .field-control::placeholder { color: #6f667b; }
+    input[type="date"] { color-scheme: dark; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .7; }
+
+    .category-select-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 45px; gap: 8px; }
+    select { appearance: none; -webkit-appearance: none; }
+    .select-arrow {
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--pink-soft) 50%),
+        linear-gradient(135deg, var(--pink-soft) 50%, transparent 50%);
+      background-position: calc(100% - 16px) 19px, calc(100% - 10px) 19px;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+      padding-right: 34px !important;
+    }
+    .manage-btn {
+      height: 45px;
+      color: var(--line);
+      background: var(--mint);
+      border: 3px solid var(--line);
+      box-shadow: 3px 3px 0 var(--line);
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 19px;
+      font-weight: 900;
+    }
+    .manage-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--line); }
+
+    .actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 10px; margin-top: 18px; }
+    .btn {
+      min-height: 49px;
+      border: 3px solid var(--line);
+      padding: 10px 12px;
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 14px;
+      font-weight: 900;
+      box-shadow: 4px 4px 0 var(--line);
+    }
+    .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--line); }
+    .btn:disabled { opacity: .65; cursor: wait; }
+    .btn-primary { color: var(--line); background: var(--pink); }
+    .btn-secondary { color: var(--ink); background: var(--panel-2); }
+    .hold-tip { margin-top: 10px; color: #81788e; font-family: var(--pixel-font); font-size: 9px; text-align: center; }
+
+    .category-section { margin-top: 24px; }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+    .section-title {
+      color: var(--ink);
+      font-family: var(--pixel-font);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .tiny-action {
+      color: var(--pink-soft);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 10px;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .category-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 5px 7px 1px; scrollbar-width: thin; }
+    .category-chip {
+      flex: 0 0 auto;
+      min-height: 42px;
+      color: var(--ink);
+      background: var(--panel-2);
+      border: 3px solid var(--line);
+      box-shadow: 3px 3px 0 var(--line);
+      padding: 8px 13px;
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .category-chip.active { color: var(--line); background: var(--pink); }
+
+    .filter-card { margin-top: 13px; padding: 12px; }
+    .filter-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .filter-title { color: var(--yellow); font-family: var(--pixel-font); font-size: 11px; font-weight: 900; }
+    .filter-reset {
+      min-height: 31px;
+      color: var(--line);
+      background: var(--mint);
+      border: 2px solid var(--line);
+      box-shadow: 2px 2px 0 var(--line);
+      padding: 5px 8px;
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 9px;
+      font-weight: 900;
+    }
+    .filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .filter-field { display: grid; gap: 5px; min-width: 0; }
+    .filter-field label { color: var(--muted); font-family: var(--pixel-font); font-size: 9px; font-weight: 900; }
+    .filter-control {
+      width: 100%;
+      min-width: 0;
+      height: 39px;
+      color: var(--ink);
+      background: var(--field);
+      border: 2px solid var(--line);
+      padding: 0 9px;
+      box-shadow: 2px 2px 0 var(--line);
+      outline: none;
+      font-size: 11px;
+    }
+    .filter-control:focus { border-color: var(--mint); }
+    .filter-status { margin-top: 10px; color: var(--muted); font-family: var(--pixel-font); font-size: 9px; line-height: 1.5; }
+
+    .entries { margin-top: 22px; }
+    .entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .entry {
+      min-width: 0;
+      overflow: hidden;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 4px 4px 0 var(--line);
+    }
+    .entry-thumb { position: relative; aspect-ratio: 1 / 1; background: var(--panel-2); border-bottom: 3px solid var(--line); }
+    .entry-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .delete-btn {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 31px;
+      height: 31px;
+      color: var(--ink);
+      background: rgba(9,7,13,.76);
+      border: 2px solid var(--line);
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 18px;
+      font-weight: 900;
+    }
+    .delete-btn:active { color: var(--line); background: var(--danger); }
+    .entry-info { display: grid; gap: 7px; padding: 10px; }
+    .tag-row { display: flex; gap: 5px; flex-wrap: wrap; }
+    .tag {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--line);
+      background: var(--pink-soft);
+      border: 2px solid var(--line);
+      padding: 3px 5px;
+      font-size: 9px;
+      font-weight: 800;
+    }
+    .tag.category { background: var(--pink); }
+    .tag.stall { background: var(--mint); }
+    .entry-date { color: var(--yellow); font-family: var(--pixel-font); font-size: 9px; }
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 30px 16px;
+      color: var(--muted);
+      text-align: center;
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      border: 3px dashed #4a4057;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(5,4,8,.82);
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .modal {
+      width: min(100%, 460px);
+      max-height: min(78vh, 650px);
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 3px solid var(--line);
+      box-shadow: 7px 7px 0 var(--line);
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; border-bottom: 3px solid var(--line); }
+    .modal-title { color: var(--pink); font-family: var(--pixel-font); font-size: 14px; font-weight: 900; }
+    .modal-close { width: 34px; height: 34px; color: var(--ink); background: var(--panel-2); border: 2px solid var(--line); cursor: pointer; font-size: 19px; font-weight: 900; }
+    .modal-body { overflow: auto; padding: 14px; }
+    .category-add { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 8px; margin-bottom: 14px; }
+    .category-add input { height: 42px; color: var(--ink); background: var(--field); border: 3px solid var(--line); padding: 0 10px; outline: none; }
+    .category-add button { color: var(--line); background: var(--pink); border: 3px solid var(--line); box-shadow: 3px 3px 0 var(--line); cursor: pointer; font-family: var(--pixel-font); font-size: 11px; font-weight: 900; }
+    .category-manager-list { display: grid; gap: 9px; }
+    .category-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 6px; align-items: center; }
+    .category-name { min-width: 0; height: 39px; color: var(--ink); background: var(--field); border: 2px solid var(--line); padding: 0 9px; outline: none; }
+    .row-action { width: 34px; height: 34px; color: var(--ink); background: var(--panel-2); border: 2px solid var(--line); cursor: pointer; font-family: var(--pixel-font); font-weight: 900; }
+    .row-action.delete { background: var(--danger); color: var(--line); }
+    .modal-note { margin-top: 12px; color: var(--muted); font-family: var(--pixel-font); font-size: 9px; line-height: 1.55; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      z-index: 300;
+      max-width: calc(100vw - 32px);
+      padding: 11px 15px;
+      color: var(--line);
+      background: var(--yellow);
+      border: 3px solid var(--line);
+      box-shadow: 4px 4px 0 var(--line);
+      font-family: var(--pixel-font);
+      font-size: 11px;
+      font-weight: 900;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 90px);
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (min-width: 620px) {
+      .filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .entry-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 430px) {
+      .brand-icon { width: 54px; height: 54px; flex-basis: 54px; }
+      .count-chip { padding: 8px 7px; font-size: 9px; }
+      .field { grid-template-columns: 72px minmax(0, 1fr); }
+      .entry-grid { gap: 9px; }
+      .entry-info { padding: 8px; }
+    }
+    @media (max-width: 340px) {
+      .topbar { align-items: flex-start; }
+      .count-chip { position: absolute; right: 14px; top: max(18px, env(safe-area-inset-top)); }
+      h1 { padding-right: 55px; white-space: normal; }
+      .field { grid-template-columns: 1fr; gap: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-icon" src="icon-192.png" alt="Picture Drawer pixel cat icon" />
+        <div class="brand-copy">
+          <h1>Picture Drawer</h1>
+          <p class="subtitle">cute photo organizer ✦</p>
+        </div>
+      </div>
+      <div class="count-chip" id="entryCount">0 RECORDS</div>
+    </header>
+
+    <section class="pixel-card editor-card" aria-label="Add photo record">
+      <div class="img-area" id="imgArea" role="button" tabindex="0" aria-label="Choose a photo from the album">
+        <div class="img-placeholder" id="placeholder">
+          <div class="upload-glyph" aria-hidden="true">↥</div>
+          <span class="placeholder-title">Tap to choose from album</span>
+          <span class="placeholder-tip">Or use the camera button below</span>
+        </div>
+        <img id="preview" alt="Photo preview" hidden />
+      </div>
+      <div class="source-actions" aria-label="Photo source">
+        <button class="source-btn" type="button" id="cameraBtn">▣ Take Photo</button>
+        <button class="source-btn album" type="button" id="albumBtn">♡ Choose Album</button>
+      </div>
+      <input class="file-input-hidden" type="file" id="cameraInput" accept="image/*" capture="environment" />
+      <input class="file-input-hidden" type="file" id="albumInput" accept="image/*" />
+
+      <div class="fields">
+        <div class="field">
+          <label for="category">♥ Category</label>
+          <div class="category-select-wrap">
+            <select class="select-arrow" id="category" aria-label="Category"></select>
+            <button class="manage-btn" type="button" id="manageCategoriesBtn" aria-label="Manage categories" title="Manage categories">✎</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="style">✦ Style</label>
+          <input class="field-control" type="text" id="style" maxlength="40" autocomplete="off" placeholder="Minimal / Pink / Cartoon" />
+        </div>
+        <div class="field">
+          <label for="stall">⌂ Stall</label>
+          <input class="field-control" type="text" id="stall" maxlength="40" autocomplete="off" placeholder="3A-108 / Ming Tong B" />
+        </div>
+        <div class="field">
+          <label for="date">▦ Date</label>
+          <input class="field-control" type="date" id="date" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" type="button" id="clearBtn" title="Tap to clear form, long press to delete all records">Clear</button>
+        <button class="btn btn-primary" type="button" id="saveBtn">Save ✦</button>
+      </div>
+      <p class="hold-tip">Long press “Clear” for 0.8 sec to delete every record</p>
+    </section>
+
+    <section class="category-section" aria-labelledby="categoryBrowseTitle">
+      <div class="section-heading">
+        <h2 class="section-title" id="categoryBrowseTitle">✦ Browse by Category</h2>
+        <button class="tiny-action" type="button" id="editCategoriesLink">Edit categories</button>
+      </div>
+      <div class="category-chips" id="categoryChips" aria-label="Category filters"></div>
+    </section>
+
+    <section class="pixel-card filter-card" aria-labelledby="filterTitle">
+      <div class="filter-head">
+        <h2 class="filter-title" id="filterTitle">⌕ FILTERS</h2>
+        <button class="filter-reset" type="button" id="resetFiltersBtn">RESET</button>
+      </div>
+      <div class="filter-grid">
+        <div class="filter-field">
+          <label for="categoryFilter">♥ Category</label>
+          <select class="filter-control select-arrow" id="categoryFilter"></select>
+        </div>
+        <div class="filter-field">
+          <label for="stallFilter">⌂ Stall</label>
+          <select class="filter-control select-arrow" id="stallFilter"><option value="">All Stalls</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="styleFilter">✦ Style</label>
+          <select class="filter-control select-arrow" id="styleFilter"><option value="">All Styles</option></select>
+        </div>
+        <div class="filter-field">
+          <label for="dateFilter">▦ Date</label>
+          <input class="filter-control" type="date" id="dateFilter" />
+        </div>
+      </div>
+      <p class="filter-status" id="filterStatus">Showing all records</p>
+    </section>
+
+    <section class="entries" aria-labelledby="recordsTitle">
+      <div class="section-heading">
+        <h2 class="section-title" id="recordsTitle">▣ Saved Photos</h2>
+      </div>
+      <div class="entry-grid" id="entryList"></div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="categoryModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
+      <div class="modal-head">
+        <h2 class="modal-title" id="categoryModalTitle">Manage Categories</h2>
+        <button class="modal-close" type="button" id="closeCategoryModal" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="category-add">
+          <input type="text" id="newCategoryInput" maxlength="24" placeholder="New category name" />
+          <button type="button" id="addCategoryBtn">ADD</button>
+        </div>
+        <div class="category-manager-list" id="categoryManagerList"></div>
+        <p class="modal-note">Categories can be added, renamed, deleted and reordered. Deleting a category keeps its photos under “Uncategorized”.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
