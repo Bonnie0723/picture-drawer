@@ -1,10 +1,10 @@
-const CACHE_NAME = 'picture-drawer-v10';
+const CACHE_NAME = 'picture-drawer-v10.1';
 
 const APP_SHELL = [
   './',
   './index.html',
-  './app.js?v=10',
-  './shopee-tools.js?v=10',
+  './app.js?v=11',
+  './shopee-tools.js?v=11',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -77,4 +77,3 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-
