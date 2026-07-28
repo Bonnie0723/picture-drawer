@@ -43,12 +43,12 @@
   tools.className = 'pixel-card business-tools';
   tools.innerHTML = `
     <div class="section-heading">
-      <h2 class="section-title">鈻?SHOPEE TOOLS</h2>
+      <h2 class="section-title">▣ SHOPEE TOOLS</h2>
       <span class="tool-note">TH / VN</span>
     </div>
     <div class="tool-launchers">
-      <button class="tool-launch dts" id="openDtsTool" type="button">鈻?DTS 鏌ヨ</button>
-      <button class="tool-launch cost" id="openCostTool" type="button">楼 鎴愭湰璁＄畻</button>
+      <button class="tool-launch dts" id="openDtsTool" type="button">▦ DTS 查询</button>
+      <button class="tool-launch cost" id="openCostTool" type="button">¥ 成本计算</button>
     </div>`;
   const entries = document.querySelector('.entries');
   entries.parentNode.insertBefore(tools, entries);
@@ -61,40 +61,40 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="shopeeToolsTitle">
       <div class="modal-head">
         <h2 class="modal-title" id="shopeeToolsTitle">Shopee Tools</h2>
-        <button class="modal-close" type="button" id="closeShopeeTools" aria-label="Close">脳</button>
+        <button class="modal-close" type="button" id="closeShopeeTools" aria-label="Close">×</button>
       </div>
       <div class="modal-body">
         <div class="tool-tabs">
-          <button class="tool-tab active" type="button" data-tool="dts">鈻?DTS 鏌ヨ</button>
-          <button class="tool-tab" type="button" data-tool="cost">楼 鎴愭湰璁＄畻</button>
+          <button class="tool-tab active" type="button" data-tool="dts">▦ DTS 查询</button>
+          <button class="tool-tab" type="button" data-tool="cost">¥ 成本计算</button>
         </div>
         <div class="tool-panel" id="dtsToolPanel">
           <div class="tool-grid">
-            <div class="tool-field"><label>绔欑偣</label><select class="tool-control" id="dtsSite"><option value="TH">娉板浗 TH</option><option value="VN">瓒婂崡 VN</option></select></div>
-            <div class="tool-field"><label>浠樻纭鏃堕棿</label><input class="tool-control" id="dtsStart" type="datetime-local"></div>
-            <div class="tool-field"><label>DTS 宸ヤ綔鏃?/label><input class="tool-control" id="dtsDays" type="number" min="1" max="30" value="1"></div>
-            <div class="tool-field"><label>棰濆浼戞伅鏃?/label><input class="tool-control" id="dtsHoliday" type="date"></div>
+            <div class="tool-field"><label>站点</label><select class="tool-control" id="dtsSite"><option value="TH">泰国 TH</option><option value="VN">越南 VN</option></select></div>
+            <div class="tool-field"><label>付款确认时间</label><input class="tool-control" id="dtsStart" type="datetime-local"></div>
+            <div class="tool-field"><label>DTS 工作日</label><input class="tool-control" id="dtsDays" type="number" min="1" max="30" value="1"></div>
+            <div class="tool-field"><label>额外休息日</label><input class="tool-control" id="dtsHoliday" type="date"></div>
           </div>
-          <div class="tool-result"><small>SHIP-BY DATE</small><strong id="dtsResult">鈥?/strong><p id="dtsBreakdown">杈撳叆璁㈠崟鏃堕棿鍜?DTS 鍚庤嚜鍔ㄨ绠椼€?/p></div>
-          <p class="tool-note">鎸夊伐浣滄棩鎺ㄧ畻锛岃嚜鍔ㄦ帓闄ゅ懆鍏€佸懆鏃ュ強浣犱繚瀛樼殑棰濆浼戞伅鏃ャ€係hopee 娲诲姩鏈熸垨鐗╂祦鍟嗙壒娈婂畨鎺掑簲浠?Seller Centre 鏄剧ず鐨勬埅姝㈡椂闂翠负鍑嗐€?/p>
+          <div class="tool-result"><small>SHIP-BY DATE</small><strong id="dtsResult">—</strong><p id="dtsBreakdown">输入订单时间和 DTS 后自动计算。</p></div>
+          <p class="tool-note">按工作日推算，自动排除周六、周日及你保存的额外休息日。Shopee 活动期或物流商特殊安排应以 Seller Centre 显示的截止时间为准。</p>
         </div>
         <div class="tool-panel" id="costToolPanel" hidden>
           <div class="tool-grid">
-            <div class="tool-field"><label>绔欑偣</label><select class="tool-control" id="costSite"><option value="TH">娉板浗 TH / THB</option><option value="VN">瓒婂崡 VN / VND</option></select></div>
-            <div class="tool-field"><label>閿€鍞环锛堝綋鍦板竵锛?/label><input class="tool-control" id="salePrice" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>鍗栧鎶樻墸锛堝綋鍦板竵锛?/label><input class="tool-control" id="sellerDiscount" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>涔板瀹炰粯杩愯垂锛堝綋鍦板竵锛?/label><input class="tool-control" id="buyerShipping" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>璐у搧鎴愭湰锛圕NY锛?/label><input class="tool-control" id="productCost" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>澶寸▼/鍖呮潗锛圕NY锛?/label><input class="tool-control" id="chinaLogistics" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>灏剧▼/鍏朵粬锛堝綋鍦板竵锛?/label><input class="tool-control" id="localLogistics" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>姹囩巼锛? CNY = 褰撳湴甯?/label><input class="tool-control rate" id="fxRate" type="number" min="0.0001" step="0.0001"></div>
-            <div class="tool-field"><label>閿€鍞垂 %</label><input class="tool-control rate" id="saleFee" type="number" min="0" max="100" step="0.01"></div>
-            <div class="tool-field"><label>鏀粯浜ゆ槗璐?%</label><input class="tool-control rate" id="paymentFee" type="number" min="0" max="100" step="0.01"></div>
-            <div class="tool-field"><label>娲诲姩/鏈嶅姟璐?%</label><input class="tool-control rate" id="serviceFee" type="number" min="0" max="100" step="0.01"></div>
-            <div class="tool-field"><label>骞冲彴璐圭◣鐜?%</label><input class="tool-control rate" id="feeTax" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>站点</label><select class="tool-control" id="costSite"><option value="TH">泰国 TH / THB</option><option value="VN">越南 VN / VND</option></select></div>
+            <div class="tool-field"><label>销售价（当地币）</label><input class="tool-control" id="salePrice" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>卖家折扣（当地币）</label><input class="tool-control" id="sellerDiscount" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>买家实付运费（当地币）</label><input class="tool-control" id="buyerShipping" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>货品成本（CNY）</label><input class="tool-control" id="productCost" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>头程/包材（CNY）</label><input class="tool-control" id="chinaLogistics" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>尾程/其他（当地币）</label><input class="tool-control" id="localLogistics" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>汇率：1 CNY = 当地币</label><input class="tool-control rate" id="fxRate" type="number" min="0.0001" step="0.0001"></div>
+            <div class="tool-field"><label>销售费 %</label><input class="tool-control rate" id="saleFee" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>支付交易费 %</label><input class="tool-control rate" id="paymentFee" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>活动/服务费 %</label><input class="tool-control rate" id="serviceFee" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>平台费税率 %</label><input class="tool-control rate" id="feeTax" type="number" min="0" max="100" step="0.01"></div>
           </div>
-          <div class="tool-result"><small>棰勮鍗曚欢鍒╂鼎</small><strong id="profitResult">楼0.00</strong><div class="metric-grid" id="costMetrics"></div></div>
-          <p class="tool-note">璐圭巼浼氫繚瀛樺湪鏈満銆傞粯璁ゅ€煎彧鐢ㄤ簬璧锋锛岃鎸?Seller Centre 鏈€鏂拌垂鐜囥€佸晢鍝佺被鐩強鍙傚姞鐨勬椿鍔ㄦ洿鏂帮紱鏈€缁堜互璁㈠崟鏀跺叆鏄庣粏涓哄噯銆?/p>
+          <div class="tool-result"><small>预计单件利润</small><strong id="profitResult">¥0.00</strong><div class="metric-grid" id="costMetrics"></div></div>
+          <p class="tool-note">费率会保存在本机。默认值只用于起步，请按 Seller Centre 最新费率、商品类目及参加的活动更新；最终以订单收入明细为准。</p>
         </div>
       </div>
     </section>`;
@@ -148,8 +148,8 @@
       if (weekend || holidays.has(dateKey(date))) skipped += 1;
       else counted += 1;
     }
-    $('dtsResult').textContent = `${date.toLocaleDateString('zh-CN')} 路 ${date.toLocaleDateString('en-US', { weekday: 'short' })}`;
-    $('dtsBreakdown').textContent = `${site} 路 ${days} 涓伐浣滄棩 路 璺宠繃 ${skipped} 涓懆鏈?浼戞伅鏃?路 璇峰湪褰撳ぉ骞冲彴鎴鏃堕棿鍓嶅畬鎴愪氦杩愭壂鎻忋€俙;
+    $('dtsResult').textContent = `${date.toLocaleDateString('zh-CN')} · ${date.toLocaleDateString('en-US', { weekday: 'short' })}`;
+    $('dtsBreakdown').textContent = `${site} · ${days} 个工作日 · 跳过 ${skipped} 个周末/休息日 · 请在当天平台截止时间前完成交运扫描。`;
   }
 
   function addHoliday() {
@@ -197,13 +197,13 @@
     const margin = priceBase > 0 ? profit / (priceBase / profile.fx) * 100 : 0;
     const roi = totalCnyCost > 0 ? profit / totalCnyCost * 100 : 0;
 
-    $('profitResult').textContent = `${profit >= 0 ? '' : '鈭?}楼${Math.abs(profit).toFixed(2)}`;
+    $('profitResult').textContent = `${profit >= 0 ? '' : '−'}¥${Math.abs(profit).toFixed(2)}`;
     $('profitResult').style.color = profit >= 0 ? 'var(--mint)' : 'var(--danger)';
     $('costMetrics').innerHTML = `
-      <div class="metric"><small>骞冲彴璐?/small><b>${profile.currency} ${platformFees.toFixed(2)}</b></div>
-      <div class="metric"><small>鍑€鍥炴</small><b>楼${cnyNet.toFixed(2)}</b></div>
-      <div class="metric"><small>鍒╂鼎鐜?/small><b>${margin.toFixed(1)}%</b></div>
-      <div class="metric"><small>鎴愭湰鍥炴姤鐜?/small><b>${roi.toFixed(1)}%</b></div>`;
+      <div class="metric"><small>平台费</small><b>${profile.currency} ${platformFees.toFixed(2)}</b></div>
+      <div class="metric"><small>净回款</small><b>¥${cnyNet.toFixed(2)}</b></div>
+      <div class="metric"><small>利润率</small><b>${margin.toFixed(1)}%</b></div>
+      <div class="metric"><small>成本回报率</small><b>${roi.toFixed(1)}%</b></div>`;
   }
 
   function switchTool(name) {
