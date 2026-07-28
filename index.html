@@ -589,7 +589,7 @@
           <button type="button" id="addCategoryBtn">ADD</button>
         </div>
         <div class="category-manager-list" id="categoryManagerList"></div>
-        <p class="modal-note">Categories can be added, renamed, deleted and reordered. Deleting a category keeps its photos under “Uncategorized”.</p>
+        <p class="modal-note">Categories can be added, renamed, deleted and reordered. Deleting a category keeps its photos under "Uncategorized".</p>
       </div>
     </section>
   </div>
@@ -678,22 +678,21 @@
           <button class="export-btn filtered" type="button" id="exportFilteredBtn">EXPORT SHOWN</button>
           <button class="export-btn all" type="button" id="exportAllBtn">EXPORT ALL</button>
         </div>
-        <p class="modal-note">“Export shown” follows the current filters. Files are named with date, category, style and stall. Your Feishu app secret stays in the backend.</p>
+        <p class="modal-note">"Export shown" follows the current filters. Files are named with date, category, style and stall. Your Feishu app secret stays in the backend.</p>
       </div>
     </section>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=10"></script>
-  <script src="shopee-tools.js?v=10"></script>
+  <script src="app.js?v=11"></script>
+  <script src="shopee-tools.js?v=11"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=10').catch(function () {});
+        navigator.serviceWorker.register('./sw.js?v=11').catch(function () {});
       });
     }
   </script>
 </body>
 </html>
-
