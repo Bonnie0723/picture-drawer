@@ -1,0 +1,5 @@
+FEISHU_APP_ID=cli_xxxxxxxxxxxxxxxx
+FEISHU_APP_SECRET=replace_me
+FEISHU_FOLDER_TOKEN=fldcnxxxxxxxxxxxx
+EXPORT_TOKEN=replace_with_a_long_random_value
+
