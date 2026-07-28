@@ -2,10 +2,15 @@
 
 **Picture Drawer** is a mobile-first visual reference organizer for designers, ecommerce operators, product teams, and anyone who saves large numbers of images on a phone.
 
-鎵嬫満鐩稿唽閫傚悎鈥滀繚瀛樺浘鐗団€濓紝浣嗕笉閫傚悎蹇€熷洖绛旇繖浜涢棶棰橈細
+手机相册适合“保存图片”，但不适合快速回答这些问题：
 
-- 杩欏紶鍥惧睘浜庝粈涔?*椋庢牸**锛?- 鏉ヨ嚜鍝釜**妗ｅ彛 / 渚涘簲鍟?*锛?- 鏄摢涓€澶╂敹闆嗙殑锛?- 鎯虫壘鏌愮被鍙傝€冨浘鏃讹紝鑳戒笉鑳界珛鍒昏皟鍑烘潵锛?
-Picture Drawer 鎶婇浂鏁ｅ浘鐗囨暣鐞嗘垚鍙绱㈢殑瑙嗚璧勬枡搴撱€?
+- 这张图属于什么**风格**？
+- 来自哪个**档口 / 供应商**？
+- 是哪一天收集的？
+- 想找某类参考图时，能不能立刻调出来？
+
+Picture Drawer 把零散图片整理成可检索的视觉资料库。
+
 ## Core needs
 
 - Collect images from the phone camera or photo album.
@@ -54,7 +59,7 @@ Picture Drawer is local-first. Records and compressed image copies are stored in
 
 The product is designed around one core workflow:
 
-> Collect once 鈫?classify quickly 鈫?retrieve anytime.
+> Collect once → classify quickly → retrieve anytime.
 
 The goal is not to replace the phone album. It adds the structured layer that a normal phone album lacks.
 
