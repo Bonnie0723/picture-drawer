@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Picture Drawer",
   "short_name": "Pic Drawer",
-  "description": "Picture Drawer v8: a cute pixel photo organizer with full-image preview, editable dropdown options, filters and date-range storage cleanup.",
+  "description": "Picture Drawer v10: a visual organizer with Shopee DTS lookup, cost calculation and secure Feishu export.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -24,3 +24,4 @@
     }
   ]
 }
+
