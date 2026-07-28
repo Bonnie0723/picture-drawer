@@ -133,7 +133,7 @@
     exportApiUrl.value = settings.apiUrl || '';
     exportAccessToken.value = settings.accessToken || '';
     const shown = getFilteredEntries(allEntries).length;
-    exportProgress.textContent = `${shown} shown 路 ${allEntries.length} total 路 ready to export`;
+    exportProgress.textContent = `${shown} shown · ${allEntries.length} total · ready to export`;
     exportModal.hidden = false;
     document.body.style.overflow = 'hidden';
   }
@@ -190,7 +190,7 @@
         continue;
       }
 
-      exportProgress.textContent = `Exporting ${index + 1}/${entries.length} 路 ${exportFileName(entry, index)}`;
+      exportProgress.textContent = `Exporting ${index + 1}/${entries.length} · ${exportFileName(entry, index)}`;
       const body = new FormData();
       body.append('file', image, exportFileName(entry, index));
       body.append('category', normalizeText(entry.category));
@@ -218,9 +218,9 @@
     exportFilteredBtn.disabled = false;
     exportAllBtn.disabled = false;
     exportProgress.textContent = failures.length
-      ? `${exported}/${entries.length} exported 路 failed items: ${failures.join(', ')}`
+      ? `${exported}/${entries.length} exported · failed items: ${failures.join(', ')}`
       : `${exported}/${entries.length} exported to Feishu successfully`;
-    showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu 鉁?);
+    showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu ✦');
   }
 
   function normalizeText(value) {
@@ -603,7 +603,7 @@
 
     const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height));
     const targetWidth = Math.max(1, Math.round(width * scale));
-    const targetHeight = Math.max(1, Math.round(…3345 tokens truncated…essage || 'Rename failed');
+    const targetHeight = Math.max(1, Math.round(heig…3341 tokens truncated…oast(error.message || 'Rename failed');
     }
   }
 
@@ -613,7 +613,7 @@
     const detail = affected.length
       ? ` ${affected.length} saved record${affected.length === 1 ? '' : 's'} will have an empty ${config.label.toLowerCase()} field.`
       : '';
-    if (!window.confirm(`Delete 鈥?{name}鈥?${detail}`)) return;
+    if (!window.confirm(`Delete “${name}”?${detail}`)) return;
 
     try {
       const next = config.values.filter((item) => item !== name);
@@ -728,7 +728,7 @@
     if (dateFilter.value) activeLabels.push(`Date: ${dateFilter.value}`);
 
     filterStatus.textContent = activeLabels.length
-      ? `${activeLabels.join(' 路 ')} 路 ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
+      ? `${activeLabels.join(' · ')} · ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
       : `Showing all ${totalCount} record${totalCount === 1 ? '' : 's'}`;
   }
 
@@ -743,8 +743,8 @@
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = isFiltered
-      ? 'No matching photos 路 try another filter 鈱?
-      : 'No photos yet 路 add your first one 鉁?;
+      ? 'No matching photos · try another filter ⌕'
+      : 'No photos yet · add your first one ✦';
     entryList.appendChild(empty);
   }
 
@@ -791,7 +791,7 @@
       deleteButton.className = 'delete-btn';
       deleteButton.type = 'button';
       deleteButton.setAttribute('aria-label', `Delete record from ${entry.date || 'unknown date'}`);
-      deleteButton.textContent = '脳';
+      deleteButton.textContent = '×';
       deleteButton.addEventListener('click', async () => {
         if (!window.confirm('Delete this photo record?')) return;
         deleteButton.disabled = true;
@@ -821,7 +821,7 @@
 
       const date = document.createElement('div');
       date.className = 'entry-date';
-      date.textContent = `鈻?${entry.date || 'No date'}`;
+      date.textContent = `▦ ${entry.date || 'No date'}`;
 
       info.append(categoryRow, detailRow, date);
       card.append(thumb, info);
@@ -878,18 +878,18 @@
     const from = cleanupFrom.value;
     const to = cleanupTo.value;
     const selected = entriesInDateRange(from, to);
-    const totalText = `${allEntries.length} saved 路 ${formatBytes(totalStoredBytes())}`;
+    const totalText = `${allEntries.length} saved · ${formatBytes(totalStoredBytes())}`;
     if (!from || !to) {
-      cleanupSummary.textContent = `Choose both dates 路 ${totalText}`;
+      cleanupSummary.textContent = `Choose both dates · ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
     if (from > to) {
-      cleanupSummary.textContent = `Start date must be before end date 路 ${totalText}`;
+      cleanupSummary.textContent = `Start date must be before end date · ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
-    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected 路 ${formatBytes(totalStoredBytes(selected))} 路 ${totalText}`;
+    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected · ${formatBytes(totalStoredBytes(selected))} · ${totalText}`;
     deleteRangeBtn.disabled = selected.length === 0;
   }
 
@@ -1049,7 +1049,7 @@
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving鈥?;
+    saveBtn.textContent = 'Saving…';
 
     try {
       const newEntry = {
@@ -1065,13 +1065,13 @@
       saveFormPreferences();
       resetImage();
       await loadEntries();
-      showToast(hiddenByCurrentFilters ? 'Saved 路 hidden by current filters' : 'Saved 鉁?);
+      showToast(hiddenByCurrentFilters ? 'Saved · hidden by current filters' : 'Saved ✦');
     } catch (error) {
       if (error && error.name === 'QuotaExceededError') showToast('Device storage is full');
       else showToast(error.message || 'Save failed');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save 鉁?;
+      saveBtn.textContent = 'Save ✦';
     }
   });
 
@@ -1163,7 +1163,7 @@
     } catch (_) {
       useMemoryStore = true;
       dbPromise = null;
-      showToast('Preview mode 路 records reset after refresh');
+      showToast('Preview mode · records reset after refresh');
     }
     await loadEntries();
     applyFormPreferences();
