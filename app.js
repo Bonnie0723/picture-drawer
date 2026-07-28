@@ -11,6 +11,7 @@
   const FORM_PREF_KEY = 'picture_drawer_form_pref_v1';
   const RETENTION_KEY = 'picture_drawer_retention_days_v1';
   const AUTO_CLEAN_LAST_KEY = 'picture_drawer_auto_clean_last_v1';
+  const EXPORT_SETTINGS_KEY = 'picture_drawer_feishu_export_v1';
   const DEFAULT_CATEGORIES = ['Minimal', 'Cute', 'Cartoon', 'INS'];
   const DEFAULT_STYLES = ['Minimal', 'Cute', 'Cartoon', 'INS', 'Pink', 'Dark', 'Clear'];
   const DEFAULT_STALLS = ['3A-108', '3A-107', '3B-205'];
@@ -67,6 +68,14 @@
   const deleteAllBtn = $('deleteAllBtn');
   const retentionDays = $('retentionDays');
   const saveRetentionBtn = $('saveRetentionBtn');
+  const openExportBtn = $('openExportBtn');
+  const exportModal = $('exportModal');
+  const closeExportModalBtn = $('closeExportModal');
+  const exportApiUrl = $('exportApiUrl');
+  const exportAccessToken = $('exportAccessToken');
+  const exportProgress = $('exportProgress');
+  const exportFilteredBtn = $('exportFilteredBtn');
+  const exportAllBtn = $('exportAllBtn');
   const toast = $('toast');
 
   let currentImageBlob = null;
@@ -99,6 +108,119 @@
     toast.textContent = message;
     toast.classList.add('show');
     toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function loadExportSettings() {
+    try {
+      const value = JSON.parse(localStorage.getItem(EXPORT_SETTINGS_KEY) || '{}');
+      return value && typeof value === 'object' ? value : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveExportSettings() {
+    try {
+      localStorage.setItem(EXPORT_SETTINGS_KEY, JSON.stringify({
+        apiUrl: exportApiUrl.value.trim().replace(/\/+$/, ''),
+        accessToken: exportAccessToken.value
+      }));
+    } catch (_) {}
+  }
+
+  function openExportModal() {
+    const settings = loadExportSettings();
+    exportApiUrl.value = settings.apiUrl || '';
+    exportAccessToken.value = settings.accessToken || '';
+    const shown = getFilteredEntries(allEntries).length;
+    exportProgress.textContent = `${shown} shown 路 ${allEntries.length} total 路 ready to export`;
+    exportModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeExportModal() {
+    exportModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function safeFilePart(value, fallback) {
+    const text = normalizeText(value) || fallback;
+    return text.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, '_').slice(0, 48);
+  }
+
+  function exportFileName(entry, index) {
+    return [
+      safeFilePart(entry.date, 'no-date'),
+      safeFilePart(entry.category, 'uncategorized'),
+      safeFilePart(entry.style, 'no-style'),
+      safeFilePart(entry.stall, 'no-stall'),
+      String(entry.id || index + 1)
+    ].join('_') + '.jpg';
+  }
+
+  async function exportEntriesToFeishu(entries) {
+    const apiUrl = exportApiUrl.value.trim().replace(/\/+$/, '');
+    const accessToken = exportAccessToken.value;
+    if (!apiUrl || !/^https?:\/\//i.test(apiUrl)) {
+      showToast('Enter a valid backend URL');
+      exportApiUrl.focus();
+      return;
+    }
+    if (!accessToken) {
+      showToast('Enter the export access token');
+      exportAccessToken.focus();
+      return;
+    }
+    if (entries.length === 0) {
+      showToast('No photos to export');
+      return;
+    }
+
+    saveExportSettings();
+    exportFilteredBtn.disabled = true;
+    exportAllBtn.disabled = true;
+    let exported = 0;
+    const failures = [];
+
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index];
+      const image = entry.image instanceof Blob ? entry.image : null;
+      if (!image) {
+        failures.push(index + 1);
+        continue;
+      }
+
+      exportProgress.textContent = `Exporting ${index + 1}/${entries.length} 路 ${exportFileName(entry, index)}`;
+      const body = new FormData();
+      body.append('file', image, exportFileName(entry, index));
+      body.append('category', normalizeText(entry.category));
+      body.append('style', normalizeText(entry.style));
+      body.append('stall', normalizeText(entry.stall));
+      body.append('date', normalizeText(entry.date));
+
+      try {
+        const response = await fetch(`${apiUrl}/api/export/feishu`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.ok === false) {
+          throw new Error(result.error || `Export failed (${response.status})`);
+        }
+        exported += 1;
+      } catch (error) {
+        failures.push(index + 1);
+        exportProgress.textContent = error.message || 'Export failed';
+      }
+    }
+
+    exportFilteredBtn.disabled = false;
+    exportAllBtn.disabled = false;
+    exportProgress.textContent = failures.length
+      ? `${exported}/${entries.length} exported 路 failed items: ${failures.join(', ')}`
+      : `${exported}/${entries.length} exported to Feishu successfully`;
+    showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu 鉁?);
   }
 
   function normalizeText(value) {
@@ -481,368 +603,7 @@
 
     const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height));
     const targetWidth = Math.max(1, Math.round(width * scale));
-    const targetHeight = Math.max(1, Math.round(height * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw new Error('This browser cannot process images');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, targetWidth, targetHeight);
-    ctx.drawImage(source, 0, 0, targetWidth, targetHeight);
-    if (closeSource) closeSource();
-
-    return canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY);
-  }
-
-  function option(value, label) {
-    const item = document.createElement('option');
-    item.value = value;
-    item.textContent = label;
-    return item;
-  }
-
-  function renderFormOptionSelect(select, values, emptyLabel) {
-    const selected = select.value;
-    const fragment = document.createDocumentFragment();
-    if (values.length === 0) fragment.appendChild(option('', emptyLabel));
-    values.forEach((value) => fragment.appendChild(option(value, value)));
-    select.replaceChildren(fragment);
-    select.value = values.includes(selected) ? selected : (values[0] || '');
-  }
-
-  function renderFormOptionControls() {
-    renderFormOptionSelect(styleInput, styleOptions, 'No styles');
-    renderFormOptionSelect(stallInput, stallOptions, 'No stalls');
-  }
-
-  function mergeOptionsFromEntries() {
-    const entryStyles = uniqueSortedValues(allEntries, 'style');
-    const entryStalls = uniqueSortedValues(allEntries, 'stall');
-    const mergedStyles = dedupeOptions([...styleOptions, ...entryStyles]);
-    const mergedStalls = dedupeOptions([...stallOptions, ...entryStalls]);
-    const stylesChanged = JSON.stringify(mergedStyles) !== JSON.stringify(styleOptions);
-    const stallsChanged = JSON.stringify(mergedStalls) !== JSON.stringify(stallOptions);
-    styleOptions = mergedStyles;
-    stallOptions = mergedStalls;
-    if (stylesChanged) saveOptionList(STYLE_KEY, styleOptions);
-    if (stallsChanged) saveOptionList(STALL_KEY, stallOptions);
-  }
-
-  function renderCategoryControls() {
-    const selectedFormCategory = categoryInput.value;
-    const selectedFilterCategory = categoryFilter.value;
-
-    categoryInput.replaceChildren();
-    if (categories.length === 0) {
-      categoryInput.appendChild(option('', 'Uncategorized'));
-    } else {
-      categories.forEach((name) => categoryInput.appendChild(option(name, name)));
-    }
-    categoryInput.value = categories.includes(selectedFormCategory)
-      ? selectedFormCategory
-      : (categories[0] || '');
-
-    const hasUncategorized = allEntries.some((entry) => !normalizeText(entry.category));
-    categoryFilter.replaceChildren(option('', 'All Categories'));
-    categories.forEach((name) => categoryFilter.appendChild(option(name, name)));
-    if (hasUncategorized) categoryFilter.appendChild(option('__uncategorized__', 'Uncategorized'));
-    categoryFilter.value = [...categoryFilter.options].some((item) => item.value === selectedFilterCategory)
-      ? selectedFilterCategory
-      : '';
-
-    categoryChips.replaceChildren();
-    const chipData = [{ value: '', label: 'All' }, ...categories.map((name) => ({ value: name, label: name }))];
-    if (hasUncategorized) chipData.push({ value: '__uncategorized__', label: 'Uncategorized' });
-
-    chipData.forEach(({ value, label }) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `category-chip${categoryFilter.value === value ? ' active' : ''}`;
-      button.textContent = value === '' ? '♥ All' : label;
-      button.dataset.value = value;
-      button.addEventListener('click', () => {
-        categoryFilter.value = value;
-        renderEntries();
-      });
-      categoryChips.appendChild(button);
-    });
-
-    renderCategoryManager();
-  }
-
-  function renderCategoryManager() {
-    categoryManagerList.replaceChildren();
-
-    if (categories.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'empty-state';
-      empty.textContent = 'No categories yet';
-      categoryManagerList.appendChild(empty);
-      return;
-    }
-
-    categories.forEach((name, index) => {
-      const row = document.createElement('div');
-      row.className = 'category-row';
-
-      const input = document.createElement('input');
-      input.className = 'category-name';
-      input.value = name;
-      input.maxLength = 24;
-      input.setAttribute('aria-label', `Rename ${name}`);
-      input.addEventListener('change', async () => {
-        const nextName = normalizeCategoryName(input.value);
-        if (nextName === name) return;
-        if (!nextName) {
-          input.value = name;
-          showToast('Category name cannot be empty');
-          return;
-        }
-        if (categories.some((item) => item.toLocaleLowerCase() === nextName.toLocaleLowerCase() && item !== name)) {
-          input.value = name;
-          showToast('That category already exists');
-          return;
-        }
-        await renameCategory(name, nextName);
-      });
-      input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') input.blur();
-      });
-
-      const up = document.createElement('button');
-      up.type = 'button';
-      up.className = 'row-action';
-      up.textContent = '↑';
-      up.disabled = index === 0;
-      up.setAttribute('aria-label', `Move ${name} up`);
-      up.addEventListener('click', () => moveCategory(index, -1));
-
-      const down = document.createElement('button');
-      down.type = 'button';
-      down.className = 'row-action';
-      down.textContent = '↓';
-      down.disabled = index === categories.length - 1;
-      down.setAttribute('aria-label', `Move ${name} down`);
-      down.addEventListener('click', () => moveCategory(index, 1));
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'row-action delete';
-      remove.textContent = '×';
-      remove.setAttribute('aria-label', `Delete ${name}`);
-      remove.addEventListener('click', () => deleteCategory(name));
-
-      row.append(input, up, down, remove);
-      categoryManagerList.appendChild(row);
-    });
-  }
-
-  function moveCategory(index, direction) {
-    const target = index + direction;
-    if (target < 0 || target >= categories.length) return;
-    [categories[index], categories[target]] = [categories[target], categories[index]];
-    saveCategoriesToStorage();
-    renderCategoryControls();
-  }
-
-  async function renameCategory(oldName, newName) {
-    try {
-      categories = categories.map((name) => (name === oldName ? newName : name));
-      saveCategoriesToStorage();
-      const affected = allEntries.filter((entry) => normalizeText(entry.category) === oldName);
-      for (const entry of affected) {
-        await putEntry({ ...entry, category: newName });
-      }
-      await loadEntries();
-      showToast(`Renamed to ${newName}`);
-    } catch (error) {
-      categories = loadCategoriesFromStorage();
-      renderCategoryControls();
-      showToast(error.message || 'Rename failed');
-    }
-  }
-
-  async function deleteCategory(name) {
-    const usedCount = allEntries.filter((entry) => normalizeText(entry.category) === name).length;
-    const message = usedCount > 0
-      ? `Delete “${name}”? ${usedCount} photo${usedCount === 1 ? '' : 's'} will become Uncategorized.`
-      : `Delete “${name}”?`;
-    if (!window.confirm(message)) return;
-
-    try {
-      categories = categories.filter((item) => item !== name);
-      saveCategoriesToStorage();
-      const affected = allEntries.filter((entry) => normalizeText(entry.category) === name);
-      for (const entry of affected) {
-        await putEntry({ ...entry, category: '' });
-      }
-      await loadEntries();
-      showToast('Category deleted');
-    } catch (error) {
-      categories = loadCategoriesFromStorage();
-      renderCategoryControls();
-      showToast(error.message || 'Delete failed');
-    }
-  }
-
-  function addCategory() {
-    const name = normalizeCategoryName(newCategoryInput.value);
-    if (!name) {
-      showToast('Enter a category name');
-      return;
-    }
-    if (categories.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-      showToast('That category already exists');
-      return;
-    }
-    categories.push(name);
-    saveCategoriesToStorage();
-    newCategoryInput.value = '';
-    renderCategoryControls();
-    categoryInput.value = name;
-    showToast('Category added');
-    newCategoryInput.focus();
-  }
-
-  function openCategoryModal() {
-    renderCategoryManager();
-    categoryModal.hidden = false;
-    document.body.style.overflow = 'hidden';
-    window.setTimeout(() => newCategoryInput.focus(), 0);
-  }
-
-  function closeCategoryModal() {
-    categoryModal.hidden = true;
-    document.body.style.overflow = '';
-  }
-
-  function getOptionConfig(type = activeOptionType) {
-    if (type === 'stall') {
-      return {
-        label: 'Stall',
-        field: 'stall',
-        key: STALL_KEY,
-        values: stallOptions,
-        setValues(next) { stallOptions = next; }
-      };
-    }
-    return {
-      label: 'Style',
-      field: 'style',
-      key: STYLE_KEY,
-      values: styleOptions,
-      setValues(next) { styleOptions = next; }
-    };
-  }
-
-  function renderOptionManager() {
-    const config = getOptionConfig();
-    styleOptionTab.classList.toggle('active', activeOptionType === 'style');
-    stallOptionTab.classList.toggle('active', activeOptionType === 'stall');
-    newOptionInput.placeholder = `New ${config.label.toLowerCase()} option`;
-    optionManagerList.replaceChildren();
-
-    if (config.values.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'empty-state';
-      empty.textContent = `No ${config.label.toLowerCase()} options yet`;
-      optionManagerList.appendChild(empty);
-      return;
-    }
-
-    config.values.forEach((name, index) => {
-      const row = document.createElement('div');
-      row.className = 'category-row';
-
-      const input = document.createElement('input');
-      input.className = 'category-name';
-      input.value = name;
-      input.maxLength = 40;
-      input.setAttribute('aria-label', `Rename ${config.label} ${name}`);
-      input.addEventListener('change', async () => {
-        const nextName = normalizeOptionName(input.value);
-        if (nextName === name) return;
-        if (!nextName) {
-          input.value = name;
-          showToast(`${config.label} cannot be empty`);
-          return;
-        }
-        if (config.values.some((item) => item.toLocaleLowerCase() === nextName.toLocaleLowerCase() && item !== name)) {
-          input.value = name;
-          showToast('That option already exists');
-          return;
-        }
-        await renameManagedOption(activeOptionType, name, nextName);
-      });
-      input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') input.blur();
-      });
-
-      const up = document.createElement('button');
-      up.type = 'button';
-      up.className = 'row-action';
-      up.textContent = '↑';
-      up.disabled = index === 0;
-      up.addEventListener('click', () => moveManagedOption(activeOptionType, index, -1));
-
-      const down = document.createElement('button');
-      down.type = 'button';
-      down.className = 'row-action';
-      down.textContent = '↓';
-      down.disabled = index === config.values.length - 1;
-      down.addEventListener('click', () => moveManagedOption(activeOptionType, index, 1));
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'row-action delete';
-      remove.textContent = '×';
-      remove.addEventListener('click', () => deleteManagedOption(activeOptionType, name));
-
-      row.append(input, up, down, remove);
-      optionManagerList.appendChild(row);
-    });
-  }
-
-  function moveManagedOption(type, index, direction) {
-    const config = getOptionConfig(type);
-    const target = index + direction;
-    if (target < 0 || target >= config.values.length) return;
-    const next = [...config.values];
-    [next[index], next[target]] = [next[target], next[index]];
-    config.setValues(next);
-    saveOptionList(config.key, next);
-    renderFormOptionControls();
-    applyFormPreferences();
-    renderOptionManager();
-  }
-
-  async function renameManagedOption(type, oldName, newName) {
-    const config = getOptionConfig(type);
-    const wasSelected = config.field === 'style'
-      ? styleInput.value === oldName
-      : stallInput.value === oldName;
-    try {
-      const next = config.values.map((name) => (name === oldName ? newName : name));
-      config.setValues(next);
-      saveOptionList(config.key, next);
-      const affected = allEntries.filter((entry) => normalizeText(entry[config.field]) === oldName);
-      for (const entry of affected) {
-        await putEntry({ ...entry, [config.field]: newName });
-      }
-      await loadEntries();
-      if (wasSelected && config.field === 'style') styleInput.value = newName;
-      if (wasSelected && config.field === 'stall') stallInput.value = newName;
-      saveFormPreferences();
-      renderOptionManager();
-      showToast(`${config.label} renamed`);
-    } catch (error) {
-      styleOptions = loadOptionList(STYLE_KEY, DEFAULT_STYLES);
-      stallOptions = loadOptionList(STALL_KEY, DEFAULT_STALLS);
-      renderFormOptionControls();
-      renderOptionManager();
-      showToast(error.message || 'Rename failed');
+    const targetHeight = Math.max(1, Math.round(…3345 tokens truncated…essage || 'Rename failed');
     }
   }
 
@@ -852,7 +613,7 @@
     const detail = affected.length
       ? ` ${affected.length} saved record${affected.length === 1 ? '' : 's'} will have an empty ${config.label.toLowerCase()} field.`
       : '';
-    if (!window.confirm(`Delete “${name}”?${detail}`)) return;
+    if (!window.confirm(`Delete 鈥?{name}鈥?${detail}`)) return;
 
     try {
       const next = config.values.filter((item) => item !== name);
@@ -967,7 +728,7 @@
     if (dateFilter.value) activeLabels.push(`Date: ${dateFilter.value}`);
 
     filterStatus.textContent = activeLabels.length
-      ? `${activeLabels.join(' · ')} · ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
+      ? `${activeLabels.join(' 路 ')} 路 ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
       : `Showing all ${totalCount} record${totalCount === 1 ? '' : 's'}`;
   }
 
@@ -982,8 +743,8 @@
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = isFiltered
-      ? 'No matching photos · try another filter ⌕'
-      : 'No photos yet · add your first one ✦';
+      ? 'No matching photos 路 try another filter 鈱?
+      : 'No photos yet 路 add your first one 鉁?;
     entryList.appendChild(empty);
   }
 
@@ -1030,7 +791,7 @@
       deleteButton.className = 'delete-btn';
       deleteButton.type = 'button';
       deleteButton.setAttribute('aria-label', `Delete record from ${entry.date || 'unknown date'}`);
-      deleteButton.textContent = '×';
+      deleteButton.textContent = '脳';
       deleteButton.addEventListener('click', async () => {
         if (!window.confirm('Delete this photo record?')) return;
         deleteButton.disabled = true;
@@ -1060,7 +821,7 @@
 
       const date = document.createElement('div');
       date.className = 'entry-date';
-      date.textContent = `▦ ${entry.date || 'No date'}`;
+      date.textContent = `鈻?${entry.date || 'No date'}`;
 
       info.append(categoryRow, detailRow, date);
       card.append(thumb, info);
@@ -1117,18 +878,18 @@
     const from = cleanupFrom.value;
     const to = cleanupTo.value;
     const selected = entriesInDateRange(from, to);
-    const totalText = `${allEntries.length} saved · ${formatBytes(totalStoredBytes())}`;
+    const totalText = `${allEntries.length} saved 路 ${formatBytes(totalStoredBytes())}`;
     if (!from || !to) {
-      cleanupSummary.textContent = `Choose both dates · ${totalText}`;
+      cleanupSummary.textContent = `Choose both dates 路 ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
     if (from > to) {
-      cleanupSummary.textContent = `Start date must be before end date · ${totalText}`;
+      cleanupSummary.textContent = `Start date must be before end date 路 ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
-    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected · ${formatBytes(totalStoredBytes(selected))} · ${totalText}`;
+    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected 路 ${formatBytes(totalStoredBytes(selected))} 路 ${totalText}`;
     deleteRangeBtn.disabled = selected.length === 0;
   }
 
@@ -1288,7 +1049,7 @@
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
+    saveBtn.textContent = 'Saving鈥?;
 
     try {
       const newEntry = {
@@ -1304,13 +1065,13 @@
       saveFormPreferences();
       resetImage();
       await loadEntries();
-      showToast(hiddenByCurrentFilters ? 'Saved · hidden by current filters' : 'Saved ✦');
+      showToast(hiddenByCurrentFilters ? 'Saved 路 hidden by current filters' : 'Saved 鉁?);
     } catch (error) {
       if (error && error.name === 'QuotaExceededError') showToast('Device storage is full');
       else showToast(error.message || 'Save failed');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save ✦';
+      saveBtn.textContent = 'Save 鉁?;
     }
   });
 
@@ -1371,11 +1132,20 @@
   deleteAllBtn.addEventListener('click', deleteEveryRecord);
   saveRetentionBtn.addEventListener('click', saveRetentionSetting);
 
+  openExportBtn.addEventListener('click', openExportModal);
+  closeExportModalBtn.addEventListener('click', closeExportModal);
+  exportModal.addEventListener('click', (event) => {
+    if (event.target === exportModal) closeExportModal();
+  });
+  exportFilteredBtn.addEventListener('click', () => exportEntriesToFeishu(getFilteredEntries(allEntries)));
+  exportAllBtn.addEventListener('click', () => exportEntriesToFeishu(allEntries));
+
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (!categoryModal.hidden) closeCategoryModal();
     if (!optionModal.hidden) closeOptionModal();
     if (!cleanupModal.hidden) closeCleanupModal();
+    if (!exportModal.hidden) closeExportModal();
   });
 
   window.addEventListener('beforeunload', () => {
@@ -1393,7 +1163,7 @@
     } catch (_) {
       useMemoryStore = true;
       dbPromise = null;
-      showToast('Preview mode · records reset after refresh');
+      showToast('Preview mode 路 records reset after refresh');
     }
     await loadEntries();
     applyFormPreferences();
@@ -1407,3 +1177,4 @@
 
   init();
 })();
+
