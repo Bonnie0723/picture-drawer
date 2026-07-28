@@ -5,10 +5,9 @@
   const DEFAULTS = {
     site: 'TH',
     profiles: {
-      TH: { currency: 'THB', fx: 5.15, saleFee: 8, paymentFee: 3, serviceFee: 0, feeTax: 7 },
-      VN: { currency: 'VND', fx: 3500, saleFee: 8, paymentFee: 5, serviceFee: 0, feeTax: 0 }
+      TH: { currency: 'THB', fx: 4.779, saleFee: 22.47, paymentFee: 3.21, serviceFee: 5, feeTax: 7 }
     },
-    holidays: { TH: [], VN: [] }
+    holidays: { TH: [] }
   };
 
   const style = document.createElement('style');
@@ -44,7 +43,7 @@
   tools.innerHTML = `
     <div class="section-heading">
       <h2 class="section-title">▣ SHOPEE TOOLS</h2>
-      <span class="tool-note">TH / VN</span>
+      <span class="tool-note">TH</span>
     </div>
     <div class="tool-launchers">
       <button class="tool-launch dts" id="openDtsTool" type="button">▦ DTS 查询</button>
@@ -70,7 +69,7 @@
         </div>
         <div class="tool-panel" id="dtsToolPanel">
           <div class="tool-grid">
-            <div class="tool-field"><label>站点</label><select class="tool-control" id="dtsSite"><option value="TH">泰国 TH</option><option value="VN">越南 VN</option></select></div>
+            <div class="tool-field"><label>站点</label><select class="tool-control" id="dtsSite"><option value="TH">泰国 TH</option></select></div>
             <div class="tool-field"><label>付款确认时间</label><input class="tool-control" id="dtsStart" type="datetime-local"></div>
             <div class="tool-field"><label>DTS 工作日</label><input class="tool-control" id="dtsDays" type="number" min="1" max="30" value="1"></div>
             <div class="tool-field"><label>额外休息日</label><input class="tool-control" id="dtsHoliday" type="date"></div>
@@ -80,7 +79,7 @@
         </div>
         <div class="tool-panel" id="costToolPanel" hidden>
           <div class="tool-grid">
-            <div class="tool-field"><label>站点</label><select class="tool-control" id="costSite"><option value="TH">泰国 TH / THB</option><option value="VN">越南 VN / VND</option></select></div>
+            <div class="tool-field"><label>站点</label><select class="tool-control" id="costSite"><option value="TH">泰国 TH / THB</option></select></div>
             <div class="tool-field"><label>销售价（当地币）</label><input class="tool-control" id="salePrice" type="number" min="0" step="0.01" value="0"></div>
             <div class="tool-field"><label>卖家折扣（当地币）</label><input class="tool-control" id="sellerDiscount" type="number" min="0" step="0.01" value="0"></div>
             <div class="tool-field"><label>买家实付运费（当地币）</label><input class="tool-control" id="buyerShipping" type="number" min="0" step="0.01" value="0"></div>
@@ -94,7 +93,7 @@
             <div class="tool-field"><label>平台费税率 %</label><input class="tool-control rate" id="feeTax" type="number" min="0" max="100" step="0.01"></div>
           </div>
           <div class="tool-result"><small>预计单件利润</small><strong id="profitResult">¥0.00</strong><div class="metric-grid" id="costMetrics"></div></div>
-          <p class="tool-note">费率会保存在本机。默认值只用于起步，请按 Seller Centre 最新费率、商品类目及参加的活动更新；最终以订单收入明细为准。</p>
+          <p class="tool-note">费率会保存在本机。默认值取自 2026-07-16 泰国手机壳实测订单，请按 Seller Centre 最新费率更新；最终以订单收入明细为准。</p>
         </div>
       </div>
     </section>`;
@@ -110,8 +109,8 @@
       return {
         ...DEFAULTS,
         ...saved,
-        profiles: { TH: { ...DEFAULTS.profiles.TH, ...(saved.profiles?.TH || {}) }, VN: { ...DEFAULTS.profiles.VN, ...(saved.profiles?.VN || {}) } },
-        holidays: { TH: saved.holidays?.TH || [], VN: saved.holidays?.VN || [] }
+        profiles: { TH: { ...DEFAULTS.profiles.TH, ...(saved.profiles?.TH || {}) } },
+        holidays: { TH: saved.holidays?.TH || [] }
       };
     } catch (_) { return structuredClone(DEFAULTS); }
   }
@@ -239,4 +238,3 @@
   document.querySelectorAll('#costToolPanel input').forEach((input) => input.addEventListener('input', calculateCost));
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !modal.hidden) closeTool(); });
 })();
-
