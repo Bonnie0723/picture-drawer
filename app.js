@@ -130,7 +130,7 @@
 
   function openExportModal() {
     const settings = loadExportSettings();
-    exportApiUrl.value = settings.apiUrl || '';
+    exportApiUrl.value = settings.apiUrl || 'https://picture-drawer-feishu-export.bonniexwj.workers.dev';
     exportAccessToken.value = settings.accessToken || '';
     const shown = getFilteredEntries(allEntries).length;
     exportProgress.textContent = `${shown} shown · ${allEntries.length} total · ready to export`;
@@ -180,6 +180,7 @@
     exportFilteredBtn.disabled = true;
     exportAllBtn.disabled = true;
     let exported = 0;
+    let lastFileToken = '';
     const failures = [];
 
     for (let index = 0; index < entries.length; index += 1) {
@@ -209,6 +210,7 @@
           throw new Error(result.error || `Export failed (${response.status})`);
         }
         exported += 1;
+        lastFileToken = result.fileToken || '';
       } catch (error) {
         failures.push(index + 1);
         exportProgress.textContent = error.message || 'Export failed';
@@ -219,7 +221,7 @@
     exportAllBtn.disabled = false;
     exportProgress.textContent = failures.length
       ? `${exported}/${entries.length} exported · failed items: ${failures.join(', ')}`
-      : `${exported}/${entries.length} exported to Feishu successfully`;
+      : `${exported}/${entries.length} exported · token: ${lastFileToken || 'n/a'}`;
     showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu ✦');
   }
 
@@ -603,8 +605,266 @@
 
     const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(width, height));
     const targetWidth = Math.max(1, Math.round(width * scale));
-    const targetHeight = Math.max(1, Math.round(heig…3341 tokens truncated…oast(error.message || 'Rename failed');
+    const targetHeight = Math.max(1, Math.round(height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source, 0, 0, targetWidth, targetHeight);
+    if (closeSource) closeSource();
+
+    const blob = await canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY);
+    return blob.size < file.size ? blob : file;
+  }
+
+  function renderCategoryControls() {
+    const fragment = document.createDocumentFragment();
+    const allButton = document.createElement('button');
+    allButton.className = 'category-chip active';
+    allButton.type = 'button';
+    allButton.dataset.value = '';
+    allButton.textContent = 'All';
+    allButton.addEventListener('click', () => {
+      categoryFilter.value = '';
+      renderEntries();
+    });
+    fragment.appendChild(allButton);
+
+    categories.forEach((name) => {
+      const button = document.createElement('button');
+      button.className = 'category-chip';
+      button.type = 'button';
+      button.dataset.value = name;
+      button.textContent = name;
+      button.addEventListener('click', () => {
+        categoryFilter.value = name;
+        renderEntries();
+      });
+      fragment.appendChild(button);
+    });
+
+    const uncategorizedButton = document.createElement('button');
+    uncategorizedButton.className = 'category-chip';
+    uncategorizedButton.type = 'button';
+    uncategorizedButton.dataset.value = '__uncategorized__';
+    uncategorizedButton.textContent = 'Uncategorized';
+    uncategorizedButton.addEventListener('click', () => {
+      categoryFilter.value = '__uncategorized__';
+      renderEntries();
+    });
+    fragment.appendChild(uncategorizedButton);
+
+    categoryChips.replaceChildren(fragment);
+  }
+
+  function option(text, value) {
+    const element = document.createElement('option');
+    element.textContent = text;
+    element.value = value;
+    return element;
+  }
+
+  function renderFormOptionControls() {
+    const categoryFragment = document.createDocumentFragment();
+    categoryFragment.appendChild(option('', 'Uncategorized'));
+    categories.forEach((name) => categoryFragment.appendChild(option(name, name)));
+    categoryInput.replaceChildren(categoryFragment);
+    if (!categories.includes(categoryInput.value)) categoryInput.value = categories[0] || '';
+
+    const styleFragment = document.createDocumentFragment();
+    styleOptions.forEach((name) => styleFragment.appendChild(option(name, name)));
+    styleInput.replaceChildren(styleFragment);
+    if (!styleOptions.includes(styleInput.value)) styleInput.value = styleOptions[0] || '';
+
+    const stallFragment = document.createDocumentFragment();
+    stallOptions.forEach((name) => stallFragment.appendChild(option(name, name)));
+    stallInput.replaceChildren(stallFragment);
+    if (!stallOptions.includes(stallInput.value)) stallInput.value = stallOptions[0] || '';
+  }
+
+  function openCategoryModal() {
+    renderCategoryManager();
+    categoryModal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    window.setTimeout(() => newCategoryInput.focus(), 0);
+  }
+
+  function closeCategoryModal() {
+    categoryModal.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function addCategory() {
+    const name = normalizeCategoryName(newCategoryInput.value);
+    if (!name) {
+      showToast('Enter a category name');
+      return;
     }
+    if (categories.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      showToast('That category already exists');
+      return;
+    }
+    categories = [...categories, name];
+    saveCategoriesToStorage();
+    newCategoryInput.value = '';
+    renderCategoryControls();
+    renderFormOptionControls();
+    renderCategoryManager();
+    showToast('Category added');
+    newCategoryInput.focus();
+  }
+
+  function renderCategoryManager() {
+    const fragment = document.createDocumentFragment();
+    categories.forEach((name, index) => {
+      const row = document.createElement('div');
+      row.className = 'category-row';
+
+      const input = document.createElement('input');
+      input.className = 'category-name';
+      input.type = 'text';
+      input.value = name;
+      input.maxLength = 24;
+
+      const upButton = document.createElement('button');
+      upButton.className = 'row-action';
+      upButton.type = 'button';
+      upButton.textContent = '↑';
+      upButton.disabled = index === 0;
+      upButton.addEventListener('click', () => moveCategory(index, -1));
+
+      const downButton = document.createElement('button');
+      downButton.className = 'row-action';
+      downButton.type = 'button';
+      downButton.textContent = '↓';
+      downButton.disabled = index === categories.length - 1;
+      downButton.addEventListener('click', () => moveCategory(index, 1));
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'row-action delete';
+      deleteButton.type = 'button';
+      deleteButton.textContent = '×';
+      deleteButton.addEventListener('click', () => deleteCategory(index));
+
+      row.append(input, upButton, downButton, deleteButton);
+      fragment.appendChild(row);
+    });
+    categoryManagerList.replaceChildren(fragment);
+  }
+
+  function moveCategory(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= categories.length) return;
+    const next = [...categories];
+    [next[index], next[newIndex]] = [next[newIndex], next[index]];
+    categories = next;
+    saveCategoriesToStorage();
+    renderCategoryControls();
+    renderFormOptionControls();
+    renderCategoryManager();
+  }
+
+  function deleteCategory(index) {
+    const name = categories[index];
+    const affected = allEntries.filter((entry) => normalizeText(entry.category) === name);
+    if (!window.confirm(`Delete category "${name}"?${affected.length > 0 ? ` ${affected.length} record${affected.length === 1 ? '' : 's'} will become "Uncategorized".` : ''}`)) return;
+    categories = categories.filter((_, i) => i !== index);
+    saveCategoriesToStorage();
+    renderCategoryControls();
+    renderFormOptionControls();
+    renderCategoryManager();
+    showToast('Category deleted');
+  }
+
+  function getOptionConfig(type) {
+    if (type === 'stall' || activeOptionType === 'stall') {
+      return { label: 'Stall', field: 'stall', key: STALL_KEY, values: stallOptions, setValues: (v) => { stallOptions = v; } };
+    }
+    return { label: 'Style', field: 'style', key: STYLE_KEY, values: styleOptions, setValues: (v) => { styleOptions = v; } };
+  }
+
+  function renderOptionManager() {
+    const config = getOptionConfig();
+    const fragment = document.createDocumentFragment();
+    config.values.forEach((name, index) => {
+      const row = document.createElement('div');
+      row.className = 'category-row';
+
+      const input = document.createElement('input');
+      input.className = 'category-name';
+      input.type = 'text';
+      input.value = name;
+      input.maxLength = 40;
+
+      const renameButton = document.createElement('button');
+      renameButton.className = 'row-action';
+      renameButton.type = 'button';
+      renameButton.textContent = '✎';
+      renameButton.addEventListener('click', () => renameManagedOption(config.field, name, input.value));
+
+      const upButton = document.createElement('button');
+      upButton.className = 'row-action';
+      upButton.type = 'button';
+      upButton.textContent = '↑';
+      upButton.disabled = index === 0;
+      upButton.addEventListener('click', () => moveManagedOption(config.field, index, -1));
+
+      const downButton = document.createElement('button');
+      downButton.className = 'row-action';
+      downButton.type = 'button';
+      downButton.textContent = '↓';
+      downButton.disabled = index === config.values.length - 1;
+      downButton.addEventListener('click', () => moveManagedOption(config.field, index, 1));
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'row-action delete';
+      deleteButton.type = 'button';
+      deleteButton.textContent = '×';
+      deleteButton.addEventListener('click', () => deleteManagedOption(config.field, name));
+
+      row.append(input, renameButton, upButton, downButton, deleteButton);
+      fragment.appendChild(row);
+    });
+    optionManagerList.replaceChildren(fragment);
+  }
+
+  async function renameManagedOption(field, oldName, newName) {
+    const name = normalizeOptionName(newName);
+    if (!name || name === oldName) return;
+    const config = getOptionConfig(field);
+    if (config.values.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase() && item !== oldName)) {
+      showToast('That option already exists');
+      return;
+    }
+    try {
+      const next = config.values.map((item) => (item === oldName ? name : item));
+      config.setValues(next);
+      saveOptionList(config.key, next);
+      for (const entry of allEntries) {
+        if (normalizeText(entry[field]) === oldName) {
+          await putEntry({ ...entry, [field]: name });
+        }
+      }
+      await loadEntries();
+      renderOptionManager();
+      showToast(`${config.label} option renamed`);
+    } catch (error) {
+      showToast(error.message || 'Rename failed');
+    }
+  }
+
+  function moveManagedOption(field, index, direction) {
+    const newIndex = index + direction;
+    const config = getOptionConfig(field);
+    if (newIndex < 0 || newIndex >= config.values.length) return;
+    const next = [...config.values];
+    [next[index], next[newIndex]] = [next[newIndex], next[index]];
+    config.setValues(next);
+    saveOptionList(config.key, next);
+    renderFormOptionControls();
+    renderOptionManager();
   }
 
   async function deleteManagedOption(type, name) {
@@ -613,7 +873,7 @@
     const detail = affected.length
       ? ` ${affected.length} saved record${affected.length === 1 ? '' : 's'} will have an empty ${config.label.toLowerCase()} field.`
       : '';
-    if (!window.confirm(`Delete “${name}”?${detail}`)) return;
+    if (!window.confirm(`Delete "${name}"?${detail}`)) return;
 
     try {
       const next = config.values.filter((item) => item !== name);
@@ -1177,4 +1437,3 @@
 
   init();
 })();
-
