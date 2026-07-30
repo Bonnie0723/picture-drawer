@@ -77,6 +77,50 @@ async function uploadToFeishu(file, env) {
   return result.data?.file_token || '';
 }
 
+async function appendToSheet(env, metadata, fileToken) {
+  if (!env.FEISHU_SHEET_TOKEN) return;
+
+  try {
+    const token = await getTenantAccessToken(env);
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const fileName = metadata.fileName || `picture-drawer-${Date.now()}.jpg`;
+
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/${env.FEISHU_SHEET_TOKEN}/values_append`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: JSON.stringify({
+          valueRange: {
+            range: '',
+            values: [
+              [
+                fileName,
+                metadata.date || '',
+                metadata.category || '',
+                metadata.style || '',
+                metadata.stall || '',
+                fileToken,
+                now
+              ]
+            ]
+          }
+        })
+      }
+    );
+
+    const result = await response.json();
+    if (!response.ok || result.code !== 0) {
+      console.error('Sheet append failed:', JSON.stringify(result));
+    }
+  } catch (error) {
+    console.error('Sheet append error:', error instanceof Error ? error.message : 'Unknown');
+  }
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -115,7 +159,21 @@ export default {
         return json(request, env, { ok: false, error: 'Image is too large' }, 413);
       }
 
+      const category = form.get('category') || '';
+      const style = form.get('style') || '';
+      const stall = form.get('stall') || '';
+      const date = form.get('date') || '';
+
       const fileToken = await uploadToFeishu(file, env);
+
+      await appendToSheet(env, {
+        fileName: file.name || '',
+        category,
+        style,
+        stall,
+        date
+      }, fileToken);
+
       return json(request, env, { ok: true, fileToken });
     } catch (error) {
       console.error(JSON.stringify({
@@ -130,4 +188,3 @@ export default {
     }
   }
 };
-
