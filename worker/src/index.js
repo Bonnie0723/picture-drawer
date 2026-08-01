@@ -6,16 +6,13 @@ function corsHeaders(request, env) {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  // If ALLOWED_ORIGINS is configured, enforce it strictly.
-  // If not configured, reflect the request Origin so the frontend works
-  // without extra env setup.
   const allowOrigin = allowed.length > 0
     ? (allowed.includes(origin) ? origin : '')
     : origin;
   return {
     ...(allowOrigin ? { 'Access-Control-Allow-Origin': allowOrigin } : {}),
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin'
   };
@@ -56,7 +53,7 @@ async function getTenantAccessToken(env) {
   });
   const result = await response.json();
   if (!response.ok || result.code !== 0 || !result.tenant_access_token) {
-    throw new Error(`Feishu authentication failed: ${result.msg || response.status}`);
+    throw new Error('Feishu auth failed: ' + (result.msg || response.status));
   }
   return result.tenant_access_token;
 }
@@ -64,7 +61,7 @@ async function getTenantAccessToken(env) {
 async function uploadToFeishu(file, env) {
   const token = await getTenantAccessToken(env);
   const body = new FormData();
-  body.append('file_name', file.name || `picture-drawer-${Date.now()}.jpg`);
+  body.append('file_name', file.name || 'picture-drawer-' + Date.now() + '.jpg');
   body.append('parent_type', 'explorer');
   body.append('parent_node', env.FEISHU_FOLDER_TOKEN);
   body.append('size', String(file.size));
@@ -72,51 +69,37 @@ async function uploadToFeishu(file, env) {
 
   const response = await fetch('https://open.feishu.cn/open-apis/drive/v1/files/upload_all', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: 'Bearer ' + token },
     body
   });
   const result = await response.json();
   if (!response.ok || result.code !== 0) {
-    throw new Error(`Feishu upload failed: ${result.msg || response.status}`);
+    throw new Error('Feishu upload failed: ' + (result.msg || response.status) + ' code=' + (result.code || 'none'));
   }
   return result.data?.file_token || '';
 }
 
 async function appendToSheet(env, metadata, fileToken) {
   if (!env.FEISHU_SHEET_TOKEN) return;
-
   try {
     const token = await getTenantAccessToken(env);
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const fileName = metadata.fileName || `picture-drawer-${Date.now()}.jpg`;
-
     const response = await fetch(
-      `https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/${env.FEISHU_SHEET_TOKEN}/values_append`,
+      'https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/' + env.FEISHU_SHEET_TOKEN + '/values_append',
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: 'Bearer ' + token,
           'Content-Type': 'application/json; charset=utf-8'
         },
         body: JSON.stringify({
           valueRange: {
             range: '',
-            values: [
-              [
-                fileName,
-                metadata.date || '',
-                metadata.category || '',
-                metadata.style || '',
-                metadata.stall || '',
-                fileToken,
-                now
-              ]
-            ]
+            values: [[metadata.fileName || '', metadata.date || '', metadata.category || '', metadata.style || '', metadata.stall || '', fileToken, now]]
           }
         })
       }
     );
-
     const result = await response.json();
     if (!response.ok || result.code !== 0) {
       console.error('Sheet append failed:', JSON.stringify(result));
@@ -137,6 +120,40 @@ export default {
 
       if (url.pathname === '/health' && request.method === 'GET') {
         return json(request, env, { ok: true });
+      }
+
+      // Diagnostic endpoint - test Feishu connection without uploading
+      if (url.pathname === '/test-feishu' && request.method === 'GET') {
+        const hasAppId = !!env.FEISHU_APP_ID;
+        const hasAppSecret = !!env.FEISHU_APP_SECRET;
+        const hasFolderToken = !!env.FEISHU_FOLDER_TOKEN;
+        const hasExportToken = !!env.EXPORT_TOKEN;
+        const hasSheetToken = !!env.FEISHU_SHEET_TOKEN;
+        
+        let feishuTest = null;
+        let feishuError = null;
+        
+        if (hasAppId && hasAppSecret) {
+          try {
+            const token = await getTenantAccessToken(env);
+            feishuTest = { tenant_access_token: 'OK (length=' + token.length + ')' };
+          } catch (e) {
+            feishuError = e instanceof Error ? e.message : 'Unknown';
+          }
+        }
+        
+        return json(request, env, {
+          ok: true,
+          config: {
+            feishu_app_id: hasAppId,
+            feishu_app_secret: hasAppSecret,
+            feishu_folder_token: hasFolderToken,
+            export_token: hasExportToken,
+            feishu_sheet_token: hasSheetToken
+          },
+          feishu_test: feishuTest,
+          feishu_error: feishuError
+        });
       }
 
       if (url.pathname !== '/api/export/feishu' || request.method !== 'POST') {
