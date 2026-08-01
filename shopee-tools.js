@@ -1,11 +1,11 @@
 (function () {
   'use strict';
 
-  const SETTINGS_KEY = 'picture_drawer_shopee_tools_v1';
+  const SETTINGS_KEY = 'picture_drawer_shopee_tools_v2';
   const DEFAULTS = {
     site: 'TH',
     profiles: {
-      TH: { currency: 'THB', fx: 4.779, saleFee: 22.47, paymentFee: 3.21, serviceFee: 5, feeTax: 7 }
+      TH: { currency: 'THB', fx: 4.779, saleFee: 22.47, paymentFee: 3.21, serviceFee: 5, feeTax: 7, withdrawRate: 0 }
     },
     holidays: { TH: [] }
   };
@@ -34,6 +34,11 @@
     .metric { padding:8px; border:2px solid var(--line); background:var(--panel-2); }
     .metric b { display:block; margin-top:3px; color:var(--mint); font-family:var(--pixel-font); font-size:13px; }
     .tool-note { color:var(--muted); font-family:var(--pixel-font); font-size:9px; line-height:1.55; }
+    .mode-badge { display:inline-block; padding:2px 6px; background:var(--panel-2); border:2px solid var(--line); font-family:var(--pixel-font); font-size:9px; color:var(--yellow); margin-left:6px; }
+    .formula-row { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px dashed #3a3545; font-size:10px; }
+    .formula-row:last-child { border-bottom:none; }
+    .formula-label { color:var(--muted); }
+    .formula-value { color:var(--mint); font-family:var(--pixel-font); }
     @media(max-width:430px){ .tool-grid { grid-template-columns:1fr; } .tool-field.full { grid-column:auto; } }
   `;
   document.head.appendChild(style);
@@ -47,7 +52,7 @@
     </div>
     <div class="tool-launchers">
       <button class="tool-launch dts" id="openDtsTool" type="button">▦ DTS 查询</button>
-      <button class="tool-launch cost" id="openCostTool" type="button">¥ 成本计算</button>
+      <button class="tool-launch cost" id="openCostTool" type="button">¥ 成本/定价</button>
     </div>`;
   const entries = document.querySelector('.entries');
   entries.parentNode.insertBefore(tools, entries);
@@ -65,7 +70,7 @@
       <div class="modal-body">
         <div class="tool-tabs">
           <button class="tool-tab active" type="button" data-tool="dts">▦ DTS 查询</button>
-          <button class="tool-tab" type="button" data-tool="cost">¥ 成本计算</button>
+          <button class="tool-tab" type="button" data-tool="cost">¥ 成本/定价</button>
         </div>
         <div class="tool-panel" id="dtsToolPanel">
           <div class="tool-grid">
@@ -79,21 +84,28 @@
         </div>
         <div class="tool-panel" id="costToolPanel" hidden>
           <div class="tool-grid">
+            <div class="tool-field full"><label>计算模式</label><select class="tool-control" id="pricingMode"><option value="profit">已知售价算利润</option><option value="price_by_profit">已知净利算售价</option><option value="price_by_rate">已知利润率算售价</option></select></div>
             <div class="tool-field"><label>站点</label><select class="tool-control" id="costSite"><option value="TH">泰国 TH / THB</option></select></div>
-            <div class="tool-field"><label>销售价（当地币）</label><input class="tool-control" id="salePrice" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>卖家折扣（当地币）</label><input class="tool-control" id="sellerDiscount" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>买家实付运费（当地币）</label><input class="tool-control" id="buyerShipping" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>货品成本（CNY）</label><input class="tool-control" id="productCost" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>头程/包材（CNY）</label><input class="tool-control" id="chinaLogistics" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>尾程/其他（当地币）</label><input class="tool-control" id="localLogistics" type="number" min="0" step="0.01" value="0"></div>
-            <div class="tool-field"><label>汇率：1 CNY = 当地币</label><input class="tool-control rate" id="fxRate" type="number" min="0.0001" step="0.0001"></div>
-            <div class="tool-field"><label>销售费 %</label><input class="tool-control rate" id="saleFee" type="number" min="0" max="100" step="0.01"></div>
-            <div class="tool-field"><label>支付交易费 %</label><input class="tool-control rate" id="paymentFee" type="number" min="0" max="100" step="0.01"></div>
-            <div class="tool-field"><label>活动/服务费 %</label><input class="tool-control rate" id="serviceFee" type="number" min="0" max="100" step="0.01"></div>
-            <div class="tool-field"><label>平台费税率 %</label><input class="tool-control rate" id="feeTax" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field" data-mode="profit"><label>销售价（当地币）</label><input class="tool-control" id="salePrice" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="profit"><label>卖家折扣（当地币）</label><input class="tool-control" id="sellerDiscount" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="price_by_profit price_by_rate"><label>商品成本价（CNY）</label><input class="tool-control" id="productCost2" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="price_by_profit"><label>预期净利润（CNY）</label><input class="tool-control" id="expectedProfit" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="price_by_rate"><label>预期净利润率 %</label><input class="tool-control" id="expectedProfitRate" type="number" min="0" max="100" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="price_by_profit price_by_rate"><label>折扣 %OFF</label><input class="tool-control" id="discountOff" type="number" min="0" max="100" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="price_by_profit price_by_rate"><label>境内段运费（CNY）</label><input class="tool-control" id="withinBorderSF" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="price_by_profit price_by_rate"><label>藏价（当地币）</label><input class="tool-control" id="hiddenFee" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>买家运费（当地币）</label><input class="tool-control" id="buyerShipping" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="profit"><label>货品成本（CNY）</label><input class="tool-control" id="productCost" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="profit"><label>头程/包材（CNY）</label><input class="tool-control" id="chinaLogistics" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field" data-mode="profit"><label>尾程/其他（当地币）</label><input class="tool-control" id="localLogistics" type="number" min="0" step="0.01" value="0"></div>
+            <div class="tool-field"><label>汇率 1 CNY =</label><input class="tool-control rate" id="fxRate" type="number" min="0.0001" step="0.0001"></div>
+            <div class="tool-field"><label>佣金费率 %</label><input class="tool-control rate" id="saleFee" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>交易手续费率 %</label><input class="tool-control rate" id="paymentFee" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>活动服务费率 %</label><input class="tool-control rate" id="serviceFee" type="number" min="0" max="100" step="0.01"></div>
+            <div class="tool-field"><label>提现手续费率 %</label><input class="tool-control rate" id="withdrawRate" type="number" min="0" max="100" step="0.01" value="0"></div>
           </div>
-          <div class="tool-result"><small>预计单件利润</small><strong id="profitResult">¥0.00</strong><div class="metric-grid" id="costMetrics"></div></div>
-          <p class="tool-note">费率会保存在本机。默认值取自 2026-07-16 泰国手机壳实测订单，请按 Seller Centre 最新费率更新；最终以订单收入明细为准。</p>
+          <div class="tool-result" id="costResultBox"><small id="costResultLabel">预计单件利润</small><strong id="profitResult">¥0.00</strong><div class="metric-grid" id="costMetrics"></div></div>
+          <p class="tool-note" id="costNote">费率保存在本机。默认取自 2026-07-16 泰国手机壳实测订单，请按 Seller Centre 最新费率更新；最终以订单收入明细为准。</p>
         </div>
       </div>
     </section>`;
@@ -168,10 +180,20 @@
     $('paymentFee').value = profile.paymentFee;
     $('serviceFee').value = profile.serviceFee;
     $('feeTax').value = profile.feeTax;
+    $('withdrawRate').value = profile.withdrawRate || 0;
     calculateCost();
   }
 
+  function updateModeVisibility() {
+    const mode = $('pricingMode').value;
+    document.querySelectorAll('#costToolPanel [data-mode]').forEach((el) => {
+      const modes = el.dataset.mode.split(' ');
+      el.style.display = modes.includes(mode) ? '' : 'none';
+    });
+  }
+
   function calculateCost() {
+    const mode = $('pricingMode').value;
     const site = $('costSite').value;
     const profile = state.profiles[site];
     profile.fx = n('fxRate') || profile.fx;
@@ -179,23 +201,41 @@
     profile.paymentFee = n('paymentFee');
     profile.serviceFee = n('serviceFee');
     profile.feeTax = n('feeTax');
+    profile.withdrawRate = n('withdrawRate');
     saveState();
 
+    const fx = profile.fx;
+    const s = profile.saleFee / 100;
+    const c = profile.paymentFee / 100;
+    const l = profile.serviceFee / 100;
+    const u = profile.withdrawRate / 100;
+
+    if (mode === 'profit') {
+      calculateProfitMode(fx, s, c, l, u, profile);
+    } else if (mode === 'price_by_profit') {
+      calculatePriceByProfitMode(fx, s, c, l, u, profile);
+    } else if (mode === 'price_by_rate') {
+      calculatePriceByRateMode(fx, s, c, l, u, profile);
+    }
+  }
+
+  function calculateProfitMode(fx, s, c, l, u, profile) {
     const priceBase = Math.max(0, n('salePrice') - n('sellerDiscount'));
     const paymentBase = priceBase + n('buyerShipping');
-    const saleFee = priceBase * profile.saleFee / 100;
-    const paymentFee = paymentBase * profile.paymentFee / 100;
-    const serviceFee = priceBase * profile.serviceFee / 100;
+    const saleFee = priceBase * s;
+    const paymentFee = paymentBase * c;
+    const serviceFee = priceBase * l;
     const feesBeforeTax = saleFee + paymentFee + serviceFee;
-    const feeTax = feesBeforeTax * profile.feeTax / 100;
+    const feeTax = feesBeforeTax * (profile.feeTax / 100);
     const platformFees = feesBeforeTax + feeTax;
     const localNet = priceBase + n('buyerShipping') - platformFees - n('localLogistics');
-    const cnyNet = localNet / profile.fx;
+    const cnyNet = localNet / fx;
     const totalCnyCost = n('productCost') + n('chinaLogistics');
     const profit = cnyNet - totalCnyCost;
-    const margin = priceBase > 0 ? profit / (priceBase / profile.fx) * 100 : 0;
+    const margin = priceBase > 0 ? profit / (priceBase / fx) * 100 : 0;
     const roi = totalCnyCost > 0 ? profit / totalCnyCost * 100 : 0;
 
+    $('costResultLabel').textContent = '预计单件利润';
     $('profitResult').textContent = `${profit >= 0 ? '' : '−'}¥${Math.abs(profit).toFixed(2)}`;
     $('profitResult').style.color = profit >= 0 ? 'var(--mint)' : 'var(--danger)';
     $('costMetrics').innerHTML = `
@@ -203,6 +243,81 @@
       <div class="metric"><small>净回款</small><b>¥${cnyNet.toFixed(2)}</b></div>
       <div class="metric"><small>利润率</small><b>${margin.toFixed(1)}%</b></div>
       <div class="metric"><small>成本回报率</small><b>${roi.toFixed(1)}%</b></div>`;
+    $('costNote').textContent = '费率保存在本机。默认取自 2026-07-16 泰国手机壳实测订单，请按 Seller Centre 最新费率更新；最终以订单收入明细为准。';
+  }
+
+  function calculatePriceByProfitMode(fx, s, c, l, u, profile) {
+    const o = n('productCost2') * fx;
+    const r = n('expectedProfit') * fx;
+    const m = n('withinBorderSF') * fx;
+    const p = n('hiddenFee');
+    const f = n('buyerShipping');
+    const discount = n('discountOff') / 100;
+
+    const denominator = 1 - s - c - l;
+    if (denominator <= 0) {
+      $('profitResult').textContent = '费率错误';
+      $('profitResult').style.color = 'var(--danger)';
+      $('costMetrics').innerHTML = '';
+      return;
+    }
+
+    const salePrice = ((o + r + m) / (1 - u) + p + f * c) / denominator;
+    const listPrice = discount < 1 ? salePrice / (1 - discount) : salePrice;
+    const profitRate = salePrice > 0 ? (r / salePrice) * 100 : 0;
+
+    const commission = salePrice * s;
+    const tradeFee = (salePrice + f) * c;
+    const activityFee = salePrice * l;
+    const platformFees = commission + tradeFee + activityFee;
+    const orderRevenue = salePrice + f - platformFees;
+
+    $('costResultLabel').textContent = '建议折后售价';
+    $('profitResult').textContent = `${profile.currency} ${salePrice.toFixed(2)}`;
+    $('profitResult').style.color = 'var(--yellow)';
+    $('costMetrics').innerHTML = `
+      <div class="metric"><small>折前售价</small><b>${profile.currency} ${listPrice.toFixed(2)}</b></div>
+      <div class="metric"><small>净利润率</small><b>${profitRate.toFixed(1)}%</b></div>
+      <div class="metric"><small>平台费</small><b>${profile.currency} ${platformFees.toFixed(2)}</b></div>
+      <div class="metric"><small>订单收入</small><b>${profile.currency} ${orderRevenue.toFixed(2)}</b></div>`;
+    $('costNote').textContent = `公式来源：Shopee 官方定价模拟器。藏价 ${p.toFixed(2)} + 买家运费 ${f.toFixed(2)} 已计入。实际定价请以 Seller Centre 为准。`;
+  }
+
+  function calculatePriceByRateMode(fx, s, c, l, u, profile) {
+    const o = n('productCost2') * fx;
+    const m = n('withinBorderSF') * fx;
+    const p = n('hiddenFee');
+    const f = n('buyerShipping');
+    const i = n('expectedProfitRate') / 100;
+    const discount = n('discountOff') / 100;
+
+    const denominator = 1 - s - c - l - i / (1 - u);
+    if (denominator <= 0) {
+      $('profitResult').textContent = '利润率过高';
+      $('profitResult').style.color = 'var(--danger)';
+      $('costMetrics').innerHTML = '';
+      return;
+    }
+
+    const salePrice = ((o + m) / (1 - u) + p + f * c) / denominator;
+    const listPrice = discount < 1 ? salePrice / (1 - discount) : salePrice;
+    const netProfit = salePrice * i;
+
+    const commission = salePrice * s;
+    const tradeFee = (salePrice + f) * c;
+    const activityFee = salePrice * l;
+    const platformFees = commission + tradeFee + activityFee;
+    const orderRevenue = salePrice + f - platformFees;
+
+    $('costResultLabel').textContent = '建议折后售价';
+    $('profitResult').textContent = `${profile.currency} ${salePrice.toFixed(2)}`;
+    $('profitResult').style.color = 'var(--yellow)';
+    $('costMetrics').innerHTML = `
+      <div class="metric"><small>折前售价</small><b>${profile.currency} ${listPrice.toFixed(2)}</b></div>
+      <div class="metric"><small>预期净利</small><b>¥${(netProfit / fx).toFixed(2)}</b></div>
+      <div class="metric"><small>平台费</small><b>${profile.currency} ${platformFees.toFixed(2)}</b></div>
+      <div class="metric"><small>订单收入</small><b>${profile.currency} ${orderRevenue.toFixed(2)}</b></div>`;
+    $('costNote').textContent = `公式来源：Shopee 官方定价模拟器。目标利润率 ${(i * 100).toFixed(1)}% 已计入。实际定价请以 Seller Centre 为准。`;
   }
 
   function switchTool(name) {
@@ -216,7 +331,7 @@
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     if (name === 'dts') calculateDts();
-    else loadProfile();
+    else { loadProfile(); updateModeVisibility(); }
   }
 
   function closeTool() {
@@ -235,6 +350,9 @@
   ['dtsSite', 'dtsStart', 'dtsDays'].forEach((id) => $(id).addEventListener('change', calculateDts));
   $('dtsHoliday').addEventListener('change', addHoliday);
   $('costSite').addEventListener('change', () => { state.site = $('costSite').value; saveState(); loadProfile(); });
-  document.querySelectorAll('#costToolPanel input').forEach((input) => input.addEventListener('input', calculateCost));
+  $('pricingMode').addEventListener('change', () => { updateModeVisibility(); calculateCost(); });
+  document.querySelectorAll('#costToolPanel input, #costToolPanel select').forEach((input) => {
+    if (input.id !== 'pricingMode') input.addEventListener('input', calculateCost);
+  });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !modal.hidden) closeTool(); });
 })();
