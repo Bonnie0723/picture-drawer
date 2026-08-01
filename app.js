@@ -935,6 +935,15 @@
     document.body.style.overflow = '';
   }
 
+  function mergeOptionsFromEntries() {
+    const styles = uniqueSortedValues(allEntries, 'style');
+    const stalls = uniqueSortedValues(allEntries, 'stall');
+    styleOptions = dedupeOptions([...styleOptions, ...styles]);
+    stallOptions = dedupeOptions([...stallOptions, ...stalls]);
+    saveOptionList(STYLE_KEY, styleOptions);
+    saveOptionList(STALL_KEY, stallOptions);
+  }
+
   function uniqueSortedValues(entries, key) {
     return [...new Set(entries.map((entry) => normalizeText(entry[key])).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }));
