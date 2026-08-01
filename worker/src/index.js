@@ -6,7 +6,12 @@ function corsHeaders(request, env) {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  const allowOrigin = allowed.includes(origin) ? origin : '';
+  // If ALLOWED_ORIGINS is configured, enforce it strictly.
+  // If not configured, reflect the request Origin so the frontend works
+  // without extra env setup.
+  const allowOrigin = allowed.length > 0
+    ? (allowed.includes(origin) ? origin : '')
+    : origin;
   return {
     ...(allowOrigin ? { 'Access-Control-Allow-Origin': allowOrigin } : {}),
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
