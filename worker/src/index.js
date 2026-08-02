@@ -74,7 +74,10 @@ async function uploadToFeishu(file, env) {
   });
   const result = await response.json();
   if (!response.ok || result.code !== 0) {
-    throw new Error('Feishu upload failed: ' + (result.msg || response.status) + ' code=' + (result.code || 'none'));
+    const err = new Error('Feishu upload failed: ' + (result.msg || response.status));
+    err.feishuCode = result.code;
+    err.feishuDetail = JSON.stringify(result);
+    throw err;
   }
   return result.data?.file_token || '';
 }
@@ -122,17 +125,14 @@ export default {
         return json(request, env, { ok: true });
       }
 
-      // Diagnostic endpoint - test Feishu connection without uploading
       if (url.pathname === '/test-feishu' && request.method === 'GET') {
         const hasAppId = !!env.FEISHU_APP_ID;
         const hasAppSecret = !!env.FEISHU_APP_SECRET;
         const hasFolderToken = !!env.FEISHU_FOLDER_TOKEN;
         const hasExportToken = !!env.EXPORT_TOKEN;
         const hasSheetToken = !!env.FEISHU_SHEET_TOKEN;
-        
         let feishuTest = null;
         let feishuError = null;
-        
         if (hasAppId && hasAppSecret) {
           try {
             const token = await getTenantAccessToken(env);
@@ -141,7 +141,6 @@ export default {
             feishuError = e instanceof Error ? e.message : 'Unknown';
           }
         }
-        
         return json(request, env, {
           ok: true,
           config: {
@@ -198,14 +197,21 @@ export default {
 
       return json(request, env, { ok: true, fileToken });
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error';
+      const feishuCode = error.feishuCode || null;
+      const feishuDetail = error.feishuDetail || null;
       console.error(JSON.stringify({
         message: 'Feishu export failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errMsg,
+        feishuCode,
+        feishuDetail,
         path: new URL(request.url).pathname
       }));
       return json(request, env, {
         ok: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
+        error: errMsg,
+        ...(feishuCode ? { feishu_code: feishuCode } : {}),
+        ...(feishuDetail ? { feishu_detail: feishuDetail } : {})
       }, 502);
     }
   }
