@@ -187,7 +187,7 @@
       const entry = entries[index];
       const image = entry.image instanceof Blob ? entry.image : null;
       if (!image) {
-        failures.push(index + 1);
+        failures.push({ index: index + 1, error: 'No image data' });
         continue;
       }
 
@@ -207,21 +207,28 @@
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.ok === false) {
-          throw new Error(result.error || `Export failed (${response.status})`);
+          let detail = result.error || `Export failed (${response.status})`;
+          if (result.feishu_code) {
+            detail = `Feishu ${result.feishu_code}: ${result.feishu_detail || result.error || 'unknown'}`;
+          }
+          throw new Error(detail);
         }
         exported += 1;
         lastFileToken = result.fileToken || '';
       } catch (error) {
-        failures.push(index + 1);
-        exportProgress.textContent = error.message || 'Export failed';
+        failures.push({ index: index + 1, error: error.message || 'Export failed' });
+        exportProgress.textContent = `#${index + 1} failed · ${error.message || 'Export failed'}`;
       }
     }
 
     exportFilteredBtn.disabled = false;
     exportAllBtn.disabled = false;
-    exportProgress.textContent = failures.length
-      ? `${exported}/${entries.length} exported · failed items: ${failures.join(', ')}`
-      : `${exported}/${entries.length} exported · token: ${lastFileToken || 'n/a'}`;
+    if (failures.length) {
+      const summary = failures.map(f => `#${f.index}: ${f.error}`).join(' | ');
+      exportProgress.textContent = `${exported}/${entries.length} exported · ${summary}`;
+    } else {
+      exportProgress.textContent = `${exported}/${entries.length} exported · token: ${lastFileToken || 'n/a'}`;
+    }
     showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu ✦');
   }
 
