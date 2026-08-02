@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="format-detection" content="telephone=no" />
-  <title>Picture Drawer v16</title>
-  <meta name="application-name" content="Picture Drawer v16" />
+  <title>Picture Drawer v17</title>
+  <meta name="application-name" content="Picture Drawer v17" />
   <style>
     :root {
       --bg: #12101a;
@@ -678,6 +678,9 @@
           <button class="export-btn filtered" type="button" id="exportFilteredBtn">EXPORT SHOWN</button>
           <button class="export-btn all" type="button" id="exportAllBtn">EXPORT ALL</button>
         </div>
+        <div class="export-actions" style="margin-top:8px;">
+          <button class="export-btn" type="button" id="exportMarkdownBtn" style="width:100%;background:var(--yellow);color:var(--line);">📥 DOWNLOAD MARKDOWN</button>
+        </div>
         <p class="modal-note">"Export shown" follows the current filters. Files are named with date, category, style and stall. Your Feishu app secret stays in the backend.</p>
       </div>
     </section>
@@ -685,12 +688,12 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=16"></script>
-  <script src="shopee-tools.js?v=16"></script>
+  <script src="app.js?v=17"></script>
+  <script src="shopee-tools.js?v=17"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=16').catch(function () {});
+        navigator.serviceWorker.register('./sw.js?v=17').catch(function () {});
       });
     }
   </script>
