@@ -111,3 +111,14 @@ Version 20 adds **IMAGES + CSV (.ZIP)**. It creates one local ZIP containing:
 - `picture-drawer.csv`: one metadata row per image, using the same image filename
 
 The package is generated entirely in the browser and does not depend on Feishu or any external service. Use **CSV ONLY** when the images are not needed.
+
+
+## Excel export with embedded pictures
+
+Version 21 adds **EXCEL WITH IMAGES (.XLSX)**. Each filtered record becomes one worksheet row:
+
+- Column A contains the picture as an embedded Excel drawing.
+- The remaining columns contain ID, date, category, style, stall, and the original image filename.
+- The header row is frozen, filters are enabled, and image rows are sized for readable thumbnails.
+
+Unlike CSV, XLSX supports embedded pictures. The workbook is generated locally in the browser and does not require Feishu.
