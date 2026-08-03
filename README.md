@@ -39,7 +39,8 @@ Picture Drawer 把零散图片整理成可检索的视觉资料库。
 - **Combined filtering**
 - **Date-range cleanup**
 - **Optional automatic retention rules**
-- **Secure export to a Feishu Drive folder**
+- **Local AI-friendly export to Markdown, JSON, and CSV**
+- **Optional secure export to a Feishu Drive folder**
 - **Shopee TH/VN DTS ship-by calculator**
 - **Editable Shopee cost and profit calculator**
 - **Local-first storage with IndexedDB**
@@ -82,3 +83,21 @@ The browser never receives the Feishu app secret. The `worker/` directory contai
 
 Exports run one image at a time and can include either all records or only the records shown by the current filters.
 
+
+
+## Reliable local export
+
+Open **EXPORT FEISHU**, then choose **MARKDOWN**, **JSON**, or **CSV**. These downloads use the records currently shown by the filters and run entirely in the browser. They do not require a Feishu account, Worker URL, access token, app secret, or network connection.
+
+- Markdown is convenient for pasting into an AI chat.
+- JSON preserves field names and is best for structured AI processing or automation.
+- CSV opens in spreadsheet tools and includes a UTF-8 BOM for Chinese text.
+- The metadata export names the matching image file, but images remain in the local Picture Drawer database.
+
+The previous Markdown button was visual only: no click handler or exporter existed in `app.js`. Version 19 wires the button correctly and adds JSON/CSV alternatives.
+
+## Feishu troubleshooting
+
+Feishu export is optional and depends on external configuration. Check `<WORKER_URL>/test-feishu` first. A successful token test proves only that the app credentials work; uploads also require the Drive upload permission, a valid folder token, and the app/bot to have access to that destination folder.
+
+Required Worker values: `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_FOLDER_TOKEN`, and `EXPORT_TOKEN`. `ALLOWED_ORIGINS` must exactly match the deployed Picture Drawer origin. After changing Worker settings, redeploy the Worker.
