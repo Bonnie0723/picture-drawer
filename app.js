@@ -76,6 +76,7 @@
   const exportProgress = $('exportProgress');
   const exportFilteredBtn = $('exportFilteredBtn');
   const exportAllBtn = $('exportAllBtn');
+  const exportExcelBtn = $('exportExcelBtn');
   const exportPackageBtn = $('exportPackageBtn');
   const exportCsvBtn = $('exportCsvBtn');
   const toast = $('toast');
@@ -327,6 +328,98 @@
   function exportCsvText(rows) {
     const fields = ['id', 'date', 'category', 'style', 'stall', 'image_file', 'captured_at'];
     return '\uFEFF' + [fields.map(csvCell).join(','), ...rows.map(row => fields.map(field => csvCell(row[field])).join(','))].join('\r\n');
+  }
+
+  function xmlEscape(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  function inlineCell(reference, value, style = 0) {
+    return `<c r="${reference}" t="inlineStr"${style ? ` s="${style}"` : ''}><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+  }
+
+  async function createExcelWithImages(entries) {
+    const encoder = new TextEncoder();
+    const rows = entries.map(exportMetadata);
+    const images = [];
+    entries.forEach((entry, index) => {
+      if (entry.image instanceof Blob) {
+        images.push({ entryIndex: index, data: entry.image, name: `image${images.length + 1}.jpg` });
+      }
+    });
+
+    const sheetRows = [
+      `<row r="1" ht="26" customHeight="1">${['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1'].map((ref, i) => inlineCell(ref, ['Image', 'ID', 'Date', 'Category', 'Style', 'Stall', 'Image file'][i], 1)).join('')}</row>`
+    ];
+    rows.forEach((row, index) => {
+      const excelRow = index + 2;
+      sheetRows.push(
+        `<row r="${excelRow}" ht="90" customHeight="1">` +
+        inlineCell(`B${excelRow}`, row.id) +
+        inlineCell(`C${excelRow}`, row.date) +
+        inlineCell(`D${excelRow}`, row.category) +
+        inlineCell(`E${excelRow}`, row.style) +
+        inlineCell(`F${excelRow}`, row.stall) +
+        inlineCell(`G${excelRow}`, row.image_file) +
+        '</row>'
+      );
+    });
+
+    const drawingAnchors = images.map((image, index) => {
+      const row = image.entryIndex + 1;
+      const relId = index + 1;
+      return `<xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>47625</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>47625</xdr:rowOff></xdr:from><xdr:ext cx="1143000" cy="809625"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${relId}" name="Picture ${relId}" descr="${xmlEscape(rows[image.entryIndex].image_file)}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${relId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1143000" cy="809625"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;
+    }).join('');
+
+    const drawingRels = images.map((image, index) =>
+      `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${image.name}"/>`
+    ).join('');
+
+    const files = [
+      { name: '[Content_Types].xml', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>`) },
+      { name: '_rels/.rels', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`) },
+      { name: 'xl/workbook.xml', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Picture Drawer" sheetId="1" r:id="rId1"/></sheets></workbook>`) },
+      { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`) },
+      { name: 'xl/styles.xml', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF6B4EFF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`) },
+      { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="20" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/><col min="3" max="3" width="14" customWidth="1"/><col min="4" max="6" width="18" customWidth="1"/><col min="7" max="7" width="46" customWidth="1"/></cols><sheetData>${sheetRows.join('')}</sheetData><autoFilter ref="A1:G${rows.length + 1}"/><drawing r:id="rId1"/></worksheet>`) },
+      { name: 'xl/worksheets/_rels/sheet1.xml.rels', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`) },
+      { name: 'xl/drawings/drawing1.xml', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${drawingAnchors}</xdr:wsDr>`) },
+      { name: 'xl/drawings/_rels/drawing1.xml.rels', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${drawingRels}</Relationships>`) }
+    ];
+    images.forEach((image) => files.push({ name: 'xl/media/' + image.name, data: image.data }));
+    return createStoredZip(files);
+  }
+
+  async function exportExcelWithImages(entries) {
+    if (!entries.length) {
+      showToast('No records to export');
+      return;
+    }
+    exportExcelBtn.disabled = true;
+    exportProgress.textContent = `Building Excel with ${entries.length} embedded images…`;
+    try {
+      const workbook = await createExcelWithImages(entries);
+      const url = URL.createObjectURL(workbook);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `picture-drawer-${localDateValue(new Date())}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+      exportProgress.textContent = `${entries.length} records exported with embedded pictures`;
+      showToast('Excel with pictures downloaded ✦');
+    } catch (error) {
+      exportProgress.textContent = error.message || 'Could not create Excel';
+      showToast('Excel export failed');
+    } finally {
+      exportExcelBtn.disabled = false;
+    }
   }
 
   async function exportImagesWithCsv(entries) {
@@ -1622,6 +1715,7 @@
   });
   exportFilteredBtn.addEventListener('click', () => exportEntriesToFeishu(getFilteredEntries(allEntries)));
   exportAllBtn.addEventListener('click', () => exportEntriesToFeishu(allEntries));
+  exportExcelBtn.addEventListener('click', () => exportExcelWithImages(getFilteredEntries(allEntries)));
   exportPackageBtn.addEventListener('click', () => exportImagesWithCsv(getFilteredEntries(allEntries)));
   exportCsvBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'csv'));
 
