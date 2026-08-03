@@ -101,3 +101,13 @@ The previous Markdown button was visual only: no click handler or exporter exist
 Feishu export is optional and depends on external configuration. Check `<WORKER_URL>/test-feishu` first. A successful token test proves only that the app credentials work; uploads also require the Drive upload permission, a valid folder token, and the app/bot to have access to that destination folder.
 
 Required Worker values: `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_FOLDER_TOKEN`, and `EXPORT_TOKEN`. `ALLOWED_ORIGINS` must exactly match the deployed Picture Drawer origin. After changing Worker settings, redeploy the Worker.
+
+
+## Image package export
+
+Version 20 adds **IMAGES + CSV (.ZIP)**. It creates one local ZIP containing:
+
+- `images/`: every JPG in the current filtered view
+- `picture-drawer.csv`: one metadata row per image, using the same image filename
+
+The package is generated entirely in the browser and does not depend on Feishu or any external service. Use **CSV ONLY** when the images are not needed.

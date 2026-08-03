@@ -76,8 +76,7 @@
   const exportProgress = $('exportProgress');
   const exportFilteredBtn = $('exportFilteredBtn');
   const exportAllBtn = $('exportAllBtn');
-  const exportMarkdownBtn = $('exportMarkdownBtn');
-  const exportJsonBtn = $('exportJsonBtn');
+  const exportPackageBtn = $('exportPackageBtn');
   const exportCsvBtn = $('exportCsvBtn');
   const toast = $('toast');
 
@@ -235,6 +234,135 @@
     }
     exportProgress.textContent = `${rows.length} shown records downloaded as ${format.toUpperCase()}`;
     showToast(`${format.toUpperCase()} downloaded ✦`);
+  }
+
+  const CRC32_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+      let value = n;
+      for (let bit = 0; bit < 8; bit += 1) {
+        value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+      }
+      table[n] = value >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let index = 0; index < bytes.length; index += 1) {
+      crc = CRC32_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function writeZipNumber(view, offset, value, bytes) {
+    if (bytes === 2) view.setUint16(offset, value, true);
+    else view.setUint32(offset, value >>> 0, true);
+  }
+
+  function zipDateTime(date) {
+    return {
+      time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+      date: ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+    };
+  }
+
+  async function createStoredZip(files) {
+    const encoder = new TextEncoder();
+    const now = zipDateTime(new Date());
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    for (const file of files) {
+      const name = encoder.encode(file.name);
+      const data = file.data instanceof Uint8Array ? file.data : new Uint8Array(await file.data.arrayBuffer());
+      const checksum = crc32(data);
+      const local = new Uint8Array(30 + name.length);
+      const localView = new DataView(local.buffer);
+      writeZipNumber(localView, 0, 0x04034b50, 4);
+      writeZipNumber(localView, 4, 20, 2);
+      writeZipNumber(localView, 6, 0x0800, 2);
+      writeZipNumber(localView, 8, 0, 2);
+      writeZipNumber(localView, 10, now.time, 2);
+      writeZipNumber(localView, 12, now.date, 2);
+      writeZipNumber(localView, 14, checksum, 4);
+      writeZipNumber(localView, 18, data.length, 4);
+      writeZipNumber(localView, 22, data.length, 4);
+      writeZipNumber(localView, 26, name.length, 2);
+      local.set(name, 30);
+      localParts.push(local, data);
+
+      const central = new Uint8Array(46 + name.length);
+      const centralView = new DataView(central.buffer);
+      writeZipNumber(centralView, 0, 0x02014b50, 4);
+      writeZipNumber(centralView, 4, 20, 2);
+      writeZipNumber(centralView, 6, 20, 2);
+      writeZipNumber(centralView, 8, 0x0800, 2);
+      writeZipNumber(centralView, 10, 0, 2);
+      writeZipNumber(centralView, 12, now.time, 2);
+      writeZipNumber(centralView, 14, now.date, 2);
+      writeZipNumber(centralView, 16, checksum, 4);
+      writeZipNumber(centralView, 20, data.length, 4);
+      writeZipNumber(centralView, 24, data.length, 4);
+      writeZipNumber(centralView, 28, name.length, 2);
+      writeZipNumber(centralView, 42, offset, 4);
+      central.set(name, 46);
+      centralParts.push(central);
+      offset += local.length + data.length;
+    }
+
+    const centralSize = centralParts.reduce((total, part) => total + part.length, 0);
+    const end = new Uint8Array(22);
+    const endView = new DataView(end.buffer);
+    writeZipNumber(endView, 0, 0x06054b50, 4);
+    writeZipNumber(endView, 8, files.length, 2);
+    writeZipNumber(endView, 10, files.length, 2);
+    writeZipNumber(endView, 12, centralSize, 4);
+    writeZipNumber(endView, 16, offset, 4);
+    return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+  }
+
+  function exportCsvText(rows) {
+    const fields = ['id', 'date', 'category', 'style', 'stall', 'image_file', 'captured_at'];
+    return '\uFEFF' + [fields.map(csvCell).join(','), ...rows.map(row => fields.map(field => csvCell(row[field])).join(','))].join('\r\n');
+  }
+
+  async function exportImagesWithCsv(entries) {
+    if (!entries.length) {
+      showToast('No records to export');
+      return;
+    }
+    exportPackageBtn.disabled = true;
+    exportCsvBtn.disabled = true;
+    try {
+      const rows = entries.map(exportMetadata);
+      const files = [{ name: 'picture-drawer.csv', data: new TextEncoder().encode(exportCsvText(rows)) }];
+      entries.forEach((entry, index) => {
+        if (entry.image instanceof Blob) {
+          files.push({ name: 'images/' + rows[index].image_file, data: entry.image });
+        }
+      });
+      exportProgress.textContent = `Packing ${files.length - 1} images and CSV…`;
+      const zip = await createStoredZip(files);
+      const url = URL.createObjectURL(zip);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `picture-drawer-${localDateValue(new Date())}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+      exportProgress.textContent = `${files.length - 1} images + CSV downloaded in one ZIP`;
+      showToast('Images + CSV downloaded ✦');
+    } catch (error) {
+      exportProgress.textContent = error.message || 'Could not create ZIP';
+      showToast('ZIP export failed');
+    } finally {
+      exportPackageBtn.disabled = false;
+      exportCsvBtn.disabled = false;
+    }
   }
 
   async function exportEntriesToFeishu(entries) {
@@ -1494,8 +1622,7 @@
   });
   exportFilteredBtn.addEventListener('click', () => exportEntriesToFeishu(getFilteredEntries(allEntries)));
   exportAllBtn.addEventListener('click', () => exportEntriesToFeishu(allEntries));
-  exportMarkdownBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'markdown'));
-  exportJsonBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'json'));
+  exportPackageBtn.addEventListener('click', () => exportImagesWithCsv(getFilteredEntries(allEntries)));
   exportCsvBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'csv'));
 
   document.addEventListener('keydown', (event) => {
