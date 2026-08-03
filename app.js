@@ -392,7 +392,8 @@
       { name: 'xl/drawings/_rels/drawing1.xml.rels', data: encoder.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${drawingRels}</Relationships>`) }
     ];
     images.forEach((image) => files.push({ name: 'xl/media/' + image.name, data: image.data }));
-    return createStoredZip(files);
+    const archive = await createStoredZip(files);
+    return new Blob([await archive.arrayBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
   async function exportExcelWithImages(entries) {
