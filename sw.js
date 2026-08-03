@@ -1,10 +1,10 @@
-const CACHE_NAME = 'picture-drawer-v20';
+const CACHE_NAME = 'picture-drawer-v21';
 
 const APP_SHELL = [
   './',
   './index.html',
-  './app.js?v=20',
-  './shopee-tools.js?v=20',
+  './app.js?v=21',
+  './shopee-tools.js?v=21',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
