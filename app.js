@@ -76,6 +76,9 @@
   const exportProgress = $('exportProgress');
   const exportFilteredBtn = $('exportFilteredBtn');
   const exportAllBtn = $('exportAllBtn');
+  const exportMarkdownBtn = $('exportMarkdownBtn');
+  const exportJsonBtn = $('exportJsonBtn');
+  const exportCsvBtn = $('exportCsvBtn');
   const toast = $('toast');
 
   let currentImageBlob = null;
@@ -156,6 +159,82 @@
       safeFilePart(entry.stall, 'no-stall'),
       String(entry.id || index + 1)
     ].join('_') + '.jpg';
+  }
+
+  function exportMetadata(entry, index) {
+    return {
+      id: entry.id ?? index + 1,
+      date: normalizeText(entry.date),
+      category: normalizeText(entry.category),
+      style: normalizeText(entry.style),
+      stall: normalizeText(entry.stall),
+      image_file: exportFileName(entry, index),
+      captured_at: entry.ts ? new Date(entry.ts).toISOString() : ''
+    };
+  }
+
+  function downloadTextFile(content, fileName, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+
+  function exportEntriesLocally(entries, format) {
+    if (!entries.length) {
+      showToast('No records to export');
+      return;
+    }
+    const rows = entries.map(exportMetadata);
+    const stamp = localDateValue(new Date());
+    if (format === 'json') {
+      downloadTextFile(JSON.stringify({
+        schema: 'picture-drawer-export/v1',
+        exported_at: new Date().toISOString(),
+        count: rows.length,
+        entries: rows
+      }, null, 2), `picture-drawer-${stamp}.json`, 'application/json;charset=utf-8');
+    } else if (format === 'csv') {
+      const fields = ['id', 'date', 'category', 'style', 'stall', 'image_file', 'captured_at'];
+      const csv = '\uFEFF' + [fields.map(csvCell).join(','), ...rows.map(row => fields.map(field => csvCell(row[field])).join(','))].join('\r\n');
+      downloadTextFile(csv, `picture-drawer-${stamp}.csv`, 'text/csv;charset=utf-8');
+    } else {
+      const lines = [
+        '# Picture Drawer Export',
+        '',
+        `Exported: ${new Date().toISOString()}`,
+        `Records: ${rows.length}`,
+        '',
+        '> AI note: metadata is complete below. Images remain in Picture Drawer; use each image_file value when matching separately downloaded images.',
+        ''
+      ];
+      rows.forEach((row, index) => {
+        lines.push(
+          `## ${index + 1}. ${row.image_file}`,
+          '',
+          `- ID: ${row.id}`,
+          `- Date: ${row.date || '—'}`,
+          `- Category: ${row.category || '—'}`,
+          `- Style: ${row.style || '—'}`,
+          `- Stall: ${row.stall || '—'}`,
+          `- Captured at: ${row.captured_at || '—'}`,
+          ''
+        );
+      });
+      downloadTextFile(lines.join('\n'), `picture-drawer-${stamp}.md`, 'text/markdown;charset=utf-8');
+    }
+    exportProgress.textContent = `${rows.length} shown records downloaded as ${format.toUpperCase()}`;
+    showToast(`${format.toUpperCase()} downloaded ✦`);
   }
 
   async function exportEntriesToFeishu(entries) {
@@ -1415,6 +1494,9 @@
   });
   exportFilteredBtn.addEventListener('click', () => exportEntriesToFeishu(getFilteredEntries(allEntries)));
   exportAllBtn.addEventListener('click', () => exportEntriesToFeishu(allEntries));
+  exportMarkdownBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'markdown'));
+  exportJsonBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'json'));
+  exportCsvBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'csv'));
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
