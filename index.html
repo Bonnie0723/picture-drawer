@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="format-detection" content="telephone=no" />
-  <title>Picture Drawer v20</title>
-  <meta name="application-name" content="Picture Drawer v20" />
+  <title>Picture Drawer v21</title>
+  <meta name="application-name" content="Picture Drawer v21" />
   <style>
     :root {
       --bg: #12101a;
@@ -679,22 +679,23 @@
           <button class="export-btn all" type="button" id="exportAllBtn">EXPORT ALL</button>
         </div>
         <div class="export-actions" style="margin-top:8px;">
-          <button class="export-btn" type="button" id="exportPackageBtn" style="background:var(--yellow);color:var(--line);">IMAGES + CSV (.ZIP)</button>
-          <button class="export-btn" type="button" id="exportCsvBtn" style="background:var(--mint);color:var(--line);">CSV ONLY</button>
+          <button class="export-btn" type="button" id="exportExcelBtn" style="background:var(--yellow);color:var(--line);">EXCEL WITH IMAGES (.XLSX)</button>
+          <button class="export-btn" type="button" id="exportPackageBtn" style="background:var(--mint);color:var(--line);">IMAGES + CSV (.ZIP)</button>
+          <button class="export-btn" type="button" id="exportCsvBtn">CSV ONLY</button>
         </div>
-        <p class="modal-note">The ZIP contains every shown JPG plus picture-drawer.csv. It works locally without Feishu, a token, or a backend.</p>
+        <p class="modal-note">Excel embeds each shown picture directly in the first column. ZIP keeps original JPG files plus CSV. Both work locally without Feishu.</p>
       </div>
     </section>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=20"></script>
-  <script src="shopee-tools.js?v=20"></script>
+  <script src="app.js?v=21"></script>
+  <script src="shopee-tools.js?v=21"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=20').catch(function () {});
+        navigator.serviceWorker.register('./sw.js?v=21').catch(function () {});
       });
     }
   </script>
