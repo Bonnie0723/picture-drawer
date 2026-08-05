@@ -474,7 +474,7 @@
         <img class="brand-icon" src="icon-192.png" alt="Picture Drawer pixel cat icon" />
         <div class="brand-copy">
           <h1>Picture Drawer</h1>
-          <p class="subtitle">cute photo organizer ✦</p>
+          <p class="subtitle">cute photo organizer ?</p>
         </div>
       </div>
       <div class="count-chip" id="entryCount">0 RECORDS</div>
@@ -483,57 +483,57 @@
     <section class="pixel-card editor-card" aria-label="Add photo record">
       <div class="img-area" id="imgArea" role="button" tabindex="0" aria-label="Choose a photo from the album">
         <div class="img-placeholder" id="placeholder">
-          <div class="upload-glyph" aria-hidden="true">↥</div>
+          <div class="upload-glyph" aria-hidden="true">?</div>
           <span class="placeholder-title">Tap to choose from album</span>
           <span class="placeholder-tip">Or use the camera button below</span>
         </div>
         <img id="preview" alt="Photo preview" hidden />
       </div>
       <div class="source-actions" aria-label="Photo source">
-        <button class="source-btn" type="button" id="cameraBtn">▣ Take Photo</button>
-        <button class="source-btn album" type="button" id="albumBtn">♡ Choose Album</button>
+        <button class="source-btn" type="button" id="cameraBtn">? Take Photo</button>
+        <button class="source-btn album" type="button" id="albumBtn">? Choose Album</button>
       </div>
       <input class="file-input-hidden" type="file" id="cameraInput" accept="image/*" capture="environment" />
       <input class="file-input-hidden" type="file" id="albumInput" accept="image/*" />
 
       <div class="fields">
         <div class="field">
-          <label for="category">♥ Category</label>
+          <label for="category">? Category</label>
           <div class="select-manage-wrap">
             <select class="select-arrow" id="category" aria-label="Category"></select>
-            <button class="manage-btn" type="button" id="manageCategoriesBtn" aria-label="Manage categories" title="Manage categories">✎</button>
+            <button class="manage-btn" type="button" id="manageCategoriesBtn" aria-label="Manage categories" title="Manage categories">?</button>
           </div>
         </div>
         <div class="field">
-          <label for="style">✦ Style</label>
+          <label for="style">? Style</label>
           <div class="select-manage-wrap">
             <select class="select-arrow" id="style" aria-label="Style"></select>
-            <button class="manage-btn" type="button" id="manageStylesBtn" aria-label="Manage style options" title="Manage style options">✎</button>
+            <button class="manage-btn" type="button" id="manageStylesBtn" aria-label="Manage style options" title="Manage style options">?</button>
           </div>
         </div>
         <div class="field">
-          <label for="stall">⌂ Stall</label>
+          <label for="stall">? Stall</label>
           <div class="select-manage-wrap">
             <select class="select-arrow" id="stall" aria-label="Stall"></select>
-            <button class="manage-btn" type="button" id="manageStallsBtn" aria-label="Manage stall options" title="Manage stall options">✎</button>
+            <button class="manage-btn" type="button" id="manageStallsBtn" aria-label="Manage stall options" title="Manage stall options">?</button>
           </div>
         </div>
         <div class="field">
-          <label for="date">▦ Date</label>
+          <label for="date">? Date</label>
           <input class="field-control" type="date" id="date" />
         </div>
       </div>
 
       <div class="actions">
         <button class="btn btn-secondary" type="button" id="clearBtn" title="Clear the current form">Clear</button>
-        <button class="btn btn-primary" type="button" id="saveBtn">Save ✦</button>
+        <button class="btn btn-primary" type="button" id="saveBtn">Save ?</button>
       </div>
       <p class="hold-tip">Selections stay after saving, so batch entry only needs a new photo.</p>
     </section>
 
     <section class="category-section" aria-labelledby="categoryBrowseTitle">
       <div class="section-heading">
-        <h2 class="section-title" id="categoryBrowseTitle">✦ Browse by Category</h2>
+        <h2 class="section-title" id="categoryBrowseTitle">? Browse by Category</h2>
         <button class="tiny-action" type="button" id="editCategoriesLink">Edit categories</button>
       </div>
       <div class="category-chips" id="categoryChips" aria-label="Category filters"></div>
@@ -541,25 +541,33 @@
 
     <section class="pixel-card filter-card" aria-labelledby="filterTitle">
       <div class="filter-head">
-        <h2 class="filter-title" id="filterTitle">⌕ FILTERS</h2>
+        <h2 class="filter-title" id="filterTitle">? FILTERS</h2>
         <button class="filter-reset" type="button" id="resetFiltersBtn">RESET</button>
       </div>
       <div class="filter-grid">
         <div class="filter-field">
-          <label for="categoryFilter">♥ Category</label>
+          <label for="categoryFilter">? Category</label>
           <select class="filter-control select-arrow" id="categoryFilter"></select>
         </div>
         <div class="filter-field">
-          <label for="stallFilter">⌂ Stall</label>
+          <label for="stallFilter">? Stall</label>
           <select class="filter-control select-arrow" id="stallFilter"><option value="">All Stalls</option></select>
         </div>
         <div class="filter-field">
-          <label for="styleFilter">✦ Style</label>
+          <label for="styleFilter">? Style</label>
           <select class="filter-control select-arrow" id="styleFilter"><option value="">All Styles</option></select>
         </div>
         <div class="filter-field">
-          <label for="dateFilter">▦ Date</label>
+          <label for="dateFilter">? Date</label>
           <input class="filter-control" type="date" id="dateFilter" />
+        </div>
+        <div class="filter-field">
+          <label for="exportStatusFilter">导出状态</label>
+          <select class="filter-control select-arrow" id="exportStatusFilter">
+            <option value="">全部</option>
+            <option value="pending">未导出</option>
+            <option value="exported">已导出</option>
+          </select>
         </div>
       </div>
       <p class="filter-status" id="filterStatus">Showing all records</p>
@@ -567,9 +575,9 @@
 
     <section class="entries" aria-labelledby="recordsTitle">
       <div class="section-heading">
-        <h2 class="section-title" id="recordsTitle">▣ Saved Photos</h2>
+        <h2 class="section-title" id="recordsTitle">? Saved Photos</h2>
         <div class="section-actions">
-          <button class="storage-button export-button" type="button" id="openExportBtn">EXPORT FEISHU</button>
+          <button class="storage-button export-button" type="button" id="openExportBtn">导出带图表格</button>
           <button class="storage-button" type="button" id="openCleanupBtn">CLEAN STORAGE</button>
         </div>
       </div>
@@ -581,7 +589,7 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
       <div class="modal-head">
         <h2 class="modal-title" id="categoryModalTitle">Manage Categories</h2>
-        <button class="modal-close" type="button" id="closeCategoryModal" aria-label="Close">×</button>
+        <button class="modal-close" type="button" id="closeCategoryModal" aria-label="Close">��</button>
       </div>
       <div class="modal-body">
         <div class="category-add">
@@ -598,12 +606,12 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="optionModalTitle">
       <div class="modal-head">
         <h2 class="modal-title" id="optionModalTitle">Manage Options</h2>
-        <button class="modal-close" type="button" id="closeOptionModal" aria-label="Close">×</button>
+        <button class="modal-close" type="button" id="closeOptionModal" aria-label="Close">��</button>
       </div>
       <div class="modal-body">
         <div class="option-tabs">
-          <button class="option-tab active" type="button" id="styleOptionTab">✦ STYLES</button>
-          <button class="option-tab" type="button" id="stallOptionTab">⌂ STALLS</button>
+          <button class="option-tab active" type="button" id="styleOptionTab">? STYLES</button>
+          <button class="option-tab" type="button" id="stallOptionTab">? STALLS</button>
         </div>
         <div class="category-add">
           <input type="text" id="newOptionInput" maxlength="40" placeholder="New option" />
@@ -619,7 +627,7 @@
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="cleanupModalTitle">
       <div class="modal-head">
         <h2 class="modal-title" id="cleanupModalTitle">Storage Cleanup</h2>
-        <button class="modal-close" type="button" id="closeCleanupModal" aria-label="Close">×</button>
+        <button class="modal-close" type="button" id="closeCleanupModal" aria-label="Close">��</button>
       </div>
       <div class="modal-body">
         <div class="cleanup-grid">
@@ -659,43 +667,27 @@
   <div class="modal-backdrop" id="exportModal" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
       <div class="modal-head">
-        <h2 class="modal-title" id="exportModalTitle">Export to Feishu</h2>
-        <button class="modal-close" type="button" id="closeExportModal" aria-label="Close">×</button>
+        <h2 class="modal-title" id="exportModalTitle">导出带图表格</h2>
+        <button class="modal-close" type="button" id="closeExportModal" aria-label="Close">��</button>
       </div>
       <div class="modal-body">
-        <div class="export-grid">
-          <div class="export-field">
-            <label for="exportApiUrl">BACKEND URL</label>
-            <input class="export-control" type="url" id="exportApiUrl" inputmode="url" placeholder="https://picture-drawer-export.workers.dev" />
-          </div>
-          <div class="export-field">
-            <label for="exportAccessToken">EXPORT ACCESS TOKEN</label>
-            <input class="export-control" type="password" id="exportAccessToken" autocomplete="off" placeholder="Configured in the backend" />
-          </div>
+        <div class="export-progress" id="exportProgress">导出当前筛选结果，图片会直接放入 Excel 第一列。</div>
+        <div class="export-actions" style="grid-template-columns:1fr;">
+          <button class="export-btn filtered" type="button" id="exportExcelBtn">导出当前筛选结果（.XLSX）</button>
         </div>
-        <div class="export-progress" id="exportProgress">Ready to export JPG files to the configured Feishu folder.</div>
-        <div class="export-actions">
-          <button class="export-btn filtered" type="button" id="exportFilteredBtn">EXPORT SHOWN</button>
-          <button class="export-btn all" type="button" id="exportAllBtn">EXPORT ALL</button>
-        </div>
-        <div class="export-actions" style="margin-top:8px;">
-          <button class="export-btn" type="button" id="exportExcelBtn" style="background:var(--yellow);color:var(--line);">EXCEL WITH IMAGES (.XLSX)</button>
-          <button class="export-btn" type="button" id="exportPackageBtn" style="background:var(--mint);color:var(--line);">IMAGES + CSV (.ZIP)</button>
-          <button class="export-btn" type="button" id="exportCsvBtn">CSV ONLY</button>
-        </div>
-        <p class="modal-note">Excel embeds each shown picture directly in the first column. ZIP keeps original JPG files plus CSV. Both work locally without Feishu.</p>
+        <p class="modal-note">下载开始后，本次记录会标记为“已导出”。下次在筛选中选择“未导出”，即可继续备份剩余图片。</p>
       </div>
     </section>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=21"></script>
-  <script src="shopee-tools.js?v=21"></script>
+  <script src="app.js?v=22"></script>
+  <script src="shopee-tools.js?v=22"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=21').catch(function () {});
+        navigator.serviceWorker.register('./sw.js?v=22').catch(function () {});
       });
     }
   </script>
