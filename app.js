@@ -1403,7 +1403,7 @@
 
       const date = document.createElement('div');
       date.className = 'entry-date';
-      date.textContent = `? ${entry.date || 'No date'}`;
+      date.textContent = entry.date || 'No date';
 
       info.append(categoryRow, detailRow, date);
       card.append(thumb, info);
