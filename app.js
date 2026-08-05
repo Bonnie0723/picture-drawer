@@ -11,7 +11,6 @@
   const FORM_PREF_KEY = 'picture_drawer_form_pref_v1';
   const RETENTION_KEY = 'picture_drawer_retention_days_v1';
   const AUTO_CLEAN_LAST_KEY = 'picture_drawer_auto_clean_last_v1';
-  const EXPORT_SETTINGS_KEY = 'picture_drawer_feishu_export_v1';
   const DEFAULT_CATEGORIES = ['Minimal', 'Cute', 'Cartoon', 'INS'];
   const DEFAULT_STYLES = ['Minimal', 'Cute', 'Cartoon', 'INS', 'Pink', 'Dark', 'Clear'];
   const DEFAULT_STALLS = ['3A-108', '3A-107', '3B-205'];
@@ -40,6 +39,7 @@
   const stallFilter = $('stallFilter');
   const styleFilter = $('styleFilter');
   const dateFilter = $('dateFilter');
+  const exportStatusFilter = $('exportStatusFilter');
   const resetFiltersBtn = $('resetFiltersBtn');
   const filterStatus = $('filterStatus');
   const manageCategoriesBtn = $('manageCategoriesBtn');
@@ -71,14 +71,8 @@
   const openExportBtn = $('openExportBtn');
   const exportModal = $('exportModal');
   const closeExportModalBtn = $('closeExportModal');
-  const exportApiUrl = $('exportApiUrl');
-  const exportAccessToken = $('exportAccessToken');
   const exportProgress = $('exportProgress');
-  const exportFilteredBtn = $('exportFilteredBtn');
-  const exportAllBtn = $('exportAllBtn');
   const exportExcelBtn = $('exportExcelBtn');
-  const exportPackageBtn = $('exportPackageBtn');
-  const exportCsvBtn = $('exportCsvBtn');
   const toast = $('toast');
 
   let currentImageBlob = null;
@@ -132,11 +126,11 @@
   }
 
   function openExportModal() {
-    const settings = loadExportSettings();
-    exportApiUrl.value = settings.apiUrl || 'https://picture-drawer-feishu-export.bonniexwj.workers.dev';
-    exportAccessToken.value = settings.accessToken || '';
     const shown = getFilteredEntries(allEntries).length;
-    exportProgress.textContent = `${shown} shown · ${allEntries.length} total · ready to export`;
+    const pending = allEntries.filter((entry) => !entry.exportedAt).length;
+    exportProgress.textContent = `当前显示 ${shown} 条 · 尚未导出 ${pending} 条`;
+    exportProgress.textContent = `${shown} shown �� ${allEntries.length} total �� ready to export`;
+    exportProgress.textContent = `当前显示 ${shown} 条 · 尚未导出 ${pending} 条`;
     exportModal.hidden = false;
     document.body.style.overflow = 'hidden';
   }
@@ -223,18 +217,18 @@
           `## ${index + 1}. ${row.image_file}`,
           '',
           `- ID: ${row.id}`,
-          `- Date: ${row.date || '—'}`,
-          `- Category: ${row.category || '—'}`,
-          `- Style: ${row.style || '—'}`,
-          `- Stall: ${row.stall || '—'}`,
-          `- Captured at: ${row.captured_at || '—'}`,
+          `- Date: ${row.date || '��'}`,
+          `- Category: ${row.category || '��'}`,
+          `- Style: ${row.style || '��'}`,
+          `- Stall: ${row.stall || '��'}`,
+          `- Captured at: ${row.captured_at || '��'}`,
           ''
         );
       });
       downloadTextFile(lines.join('\n'), `picture-drawer-${stamp}.md`, 'text/markdown;charset=utf-8');
     }
     exportProgress.textContent = `${rows.length} shown records downloaded as ${format.toUpperCase()}`;
-    showToast(`${format.toUpperCase()} downloaded ✦`);
+    showToast(`${format.toUpperCase()} downloaded ?`);
   }
 
   const CRC32_TABLE = (() => {
@@ -402,7 +396,7 @@
       return;
     }
     exportExcelBtn.disabled = true;
-    exportProgress.textContent = `Building Excel with ${entries.length} embedded images…`;
+    exportProgress.textContent = `Building Excel with ${entries.length} embedded images��`;
     try {
       const workbook = await createExcelWithImages(entries);
       const url = URL.createObjectURL(workbook);
@@ -413,8 +407,15 @@
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+      const exportedAt = new Date().toISOString();
+      await Promise.all(entries.map((entry) => putEntry({ ...entry, exportedAt })));
+      await loadEntries();
+      exportProgress.textContent = `已导出 ${entries.length} 条，并标记为“已导出”`;
+      showToast('带图表格已下载');
       exportProgress.textContent = `${entries.length} records exported with embedded pictures`;
-      showToast('Excel with pictures downloaded ✦');
+      showToast('Excel with pictures downloaded ?');
+      exportProgress.textContent = `已导出 ${entries.length} 条，并标记为“已导出”`;
+      showToast('带图表格已下载');
     } catch (error) {
       exportProgress.textContent = error.message || 'Could not create Excel';
       showToast('Excel export failed');
@@ -438,7 +439,7 @@
           files.push({ name: 'images/' + rows[index].image_file, data: entry.image });
         }
       });
-      exportProgress.textContent = `Packing ${files.length - 1} images and CSV…`;
+      exportProgress.textContent = `Packing ${files.length - 1} images and CSV��`;
       const zip = await createStoredZip(files);
       const url = URL.createObjectURL(zip);
       const link = document.createElement('a');
@@ -449,7 +450,7 @@
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 2000);
       exportProgress.textContent = `${files.length - 1} images + CSV downloaded in one ZIP`;
-      showToast('Images + CSV downloaded ✦');
+      showToast('Images + CSV downloaded ?');
     } catch (error) {
       exportProgress.textContent = error.message || 'Could not create ZIP';
       showToast('ZIP export failed');
@@ -492,7 +493,7 @@
         continue;
       }
 
-      exportProgress.textContent = `Exporting ${index + 1}/${entries.length} · ${exportFileName(entry, index)}`;
+      exportProgress.textContent = `Exporting ${index + 1}/${entries.length} �� ${exportFileName(entry, index)}`;
       const body = new FormData();
       body.append('file', image, exportFileName(entry, index));
       body.append('category', normalizeText(entry.category));
@@ -518,7 +519,7 @@
         lastFileToken = result.fileToken || '';
       } catch (error) {
         failures.push({ index: index + 1, error: error.message || 'Export failed' });
-        exportProgress.textContent = `#${index + 1} failed · ${error.message || 'Export failed'}`;
+        exportProgress.textContent = `#${index + 1} failed �� ${error.message || 'Export failed'}`;
       }
     }
 
@@ -526,11 +527,11 @@
     exportAllBtn.disabled = false;
     if (failures.length) {
       const summary = failures.map(f => `#${f.index}: ${f.error}`).join(' | ');
-      exportProgress.textContent = `${exported}/${entries.length} exported · ${summary}`;
+      exportProgress.textContent = `${exported}/${entries.length} exported �� ${summary}`;
     } else {
-      exportProgress.textContent = `${exported}/${entries.length} exported · token: ${lastFileToken || 'n/a'}`;
+      exportProgress.textContent = `${exported}/${entries.length} exported �� token: ${lastFileToken || 'n/a'}`;
     }
-    showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu ✦');
+    showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu ?');
   }
 
   function normalizeText(value) {
@@ -1039,21 +1040,21 @@
       const upButton = document.createElement('button');
       upButton.className = 'row-action';
       upButton.type = 'button';
-      upButton.textContent = '↑';
+      upButton.textContent = '��';
       upButton.disabled = index === 0;
       upButton.addEventListener('click', () => moveCategory(index, -1));
 
       const downButton = document.createElement('button');
       downButton.className = 'row-action';
       downButton.type = 'button';
-      downButton.textContent = '↓';
+      downButton.textContent = '��';
       downButton.disabled = index === categories.length - 1;
       downButton.addEventListener('click', () => moveCategory(index, 1));
 
       const deleteButton = document.createElement('button');
       deleteButton.className = 'row-action delete';
       deleteButton.type = 'button';
-      deleteButton.textContent = '×';
+      deleteButton.textContent = '��';
       deleteButton.addEventListener('click', () => deleteCategory(index));
 
       row.append(input, upButton, downButton, deleteButton);
@@ -1109,27 +1110,27 @@
       const renameButton = document.createElement('button');
       renameButton.className = 'row-action';
       renameButton.type = 'button';
-      renameButton.textContent = '✎';
+      renameButton.textContent = '?';
       renameButton.addEventListener('click', () => renameManagedOption(config.field, name, input.value));
 
       const upButton = document.createElement('button');
       upButton.className = 'row-action';
       upButton.type = 'button';
-      upButton.textContent = '↑';
+      upButton.textContent = '��';
       upButton.disabled = index === 0;
       upButton.addEventListener('click', () => moveManagedOption(config.field, index, -1));
 
       const downButton = document.createElement('button');
       downButton.className = 'row-action';
       downButton.type = 'button';
-      downButton.textContent = '↓';
+      downButton.textContent = '��';
       downButton.disabled = index === config.values.length - 1;
       downButton.addEventListener('click', () => moveManagedOption(config.field, index, 1));
 
       const deleteButton = document.createElement('button');
       deleteButton.className = 'row-action delete';
       deleteButton.type = 'button';
-      deleteButton.textContent = '×';
+      deleteButton.textContent = '��';
       deleteButton.addEventListener('click', () => deleteManagedOption(config.field, name));
 
       row.append(input, renameButton, upButton, downButton, deleteButton);
@@ -1279,6 +1280,7 @@
     const selectedStall = stallFilter.value;
     const selectedStyle = styleFilter.value;
     const selectedDate = dateFilter.value;
+    const selectedExportStatus = exportStatusFilter.value;
 
     return entries.filter((entry) => {
       const entryCategory = normalizeText(entry.category);
@@ -1287,12 +1289,14 @@
       if (selectedStall && normalizeText(entry.stall) !== selectedStall) return false;
       if (selectedStyle && normalizeText(entry.style) !== selectedStyle) return false;
       if (selectedDate && normalizeText(entry.date) !== selectedDate) return false;
+      if (selectedExportStatus === 'pending' && entry.exportedAt) return false;
+      if (selectedExportStatus === 'exported' && !entry.exportedAt) return false;
       return true;
     });
   }
 
   function hasActiveFilters() {
-    return Boolean(categoryFilter.value || stallFilter.value || styleFilter.value || dateFilter.value);
+    return Boolean(categoryFilter.value || stallFilter.value || styleFilter.value || dateFilter.value || exportStatusFilter.value);
   }
 
   function updateFilterStatus(filteredCount, totalCount) {
@@ -1303,9 +1307,10 @@
     if (stallFilter.value) activeLabels.push(`Stall: ${stallFilter.value}`);
     if (styleFilter.value) activeLabels.push(`Style: ${styleFilter.value}`);
     if (dateFilter.value) activeLabels.push(`Date: ${dateFilter.value}`);
+    if (exportStatusFilter.value) activeLabels.push(exportStatusFilter.value === 'pending' ? '未导出' : '已导出');
 
     filterStatus.textContent = activeLabels.length
-      ? `${activeLabels.join(' · ')} · ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
+      ? `${activeLabels.join(' �� ')} �� ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
       : `Showing all ${totalCount} record${totalCount === 1 ? '' : 's'}`;
   }
 
@@ -1320,8 +1325,8 @@
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = isFiltered
-      ? 'No matching photos · try another filter ⌕'
-      : 'No photos yet · add your first one ✦';
+      ? 'No matching photos �� try another filter ?'
+      : 'No photos yet �� add your first one ?';
     entryList.appendChild(empty);
   }
 
@@ -1368,7 +1373,7 @@
       deleteButton.className = 'delete-btn';
       deleteButton.type = 'button';
       deleteButton.setAttribute('aria-label', `Delete record from ${entry.date || 'unknown date'}`);
-      deleteButton.textContent = '×';
+      deleteButton.textContent = '��';
       deleteButton.addEventListener('click', async () => {
         if (!window.confirm('Delete this photo record?')) return;
         deleteButton.disabled = true;
@@ -1398,7 +1403,7 @@
 
       const date = document.createElement('div');
       date.className = 'entry-date';
-      date.textContent = `▦ ${entry.date || 'No date'}`;
+      date.textContent = `? ${entry.date || 'No date'}`;
 
       info.append(categoryRow, detailRow, date);
       card.append(thumb, info);
@@ -1455,18 +1460,18 @@
     const from = cleanupFrom.value;
     const to = cleanupTo.value;
     const selected = entriesInDateRange(from, to);
-    const totalText = `${allEntries.length} saved · ${formatBytes(totalStoredBytes())}`;
+    const totalText = `${allEntries.length} saved �� ${formatBytes(totalStoredBytes())}`;
     if (!from || !to) {
-      cleanupSummary.textContent = `Choose both dates · ${totalText}`;
+      cleanupSummary.textContent = `Choose both dates �� ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
     if (from > to) {
-      cleanupSummary.textContent = `Start date must be before end date · ${totalText}`;
+      cleanupSummary.textContent = `Start date must be before end date �� ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
-    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected · ${formatBytes(totalStoredBytes(selected))} · ${totalText}`;
+    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected �� ${formatBytes(totalStoredBytes(selected))} �� ${totalText}`;
     deleteRangeBtn.disabled = selected.length === 0;
   }
 
@@ -1626,7 +1631,7 @@
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
+    saveBtn.textContent = 'Saving��';
 
     try {
       const newEntry = {
@@ -1642,13 +1647,13 @@
       saveFormPreferences();
       resetImage();
       await loadEntries();
-      showToast(hiddenByCurrentFilters ? 'Saved · hidden by current filters' : 'Saved ✦');
+      showToast(hiddenByCurrentFilters ? 'Saved �� hidden by current filters' : 'Saved ?');
     } catch (error) {
       if (error && error.name === 'QuotaExceededError') showToast('Device storage is full');
       else showToast(error.message || 'Save failed');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save ✦';
+      saveBtn.textContent = 'Save ?';
     }
   });
 
@@ -1661,7 +1666,7 @@
     control.addEventListener('change', saveFormPreferences);
   });
 
-  [categoryFilter, stallFilter, styleFilter, dateFilter].forEach((control) => {
+  [categoryFilter, stallFilter, styleFilter, dateFilter, exportStatusFilter].forEach((control) => {
     control.addEventListener('change', renderEntries);
   });
 
@@ -1670,6 +1675,7 @@
     stallFilter.value = '';
     styleFilter.value = '';
     dateFilter.value = '';
+    exportStatusFilter.value = '';
     renderEntries();
     showToast('Filters reset');
   });
@@ -1714,11 +1720,7 @@
   exportModal.addEventListener('click', (event) => {
     if (event.target === exportModal) closeExportModal();
   });
-  exportFilteredBtn.addEventListener('click', () => exportEntriesToFeishu(getFilteredEntries(allEntries)));
-  exportAllBtn.addEventListener('click', () => exportEntriesToFeishu(allEntries));
   exportExcelBtn.addEventListener('click', () => exportExcelWithImages(getFilteredEntries(allEntries)));
-  exportPackageBtn.addEventListener('click', () => exportImagesWithCsv(getFilteredEntries(allEntries)));
-  exportCsvBtn.addEventListener('click', () => exportEntriesLocally(getFilteredEntries(allEntries), 'csv'));
 
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
@@ -1743,7 +1745,7 @@
     } catch (_) {
       useMemoryStore = true;
       dbPromise = null;
-      showToast('Preview mode · records reset after refresh');
+      showToast('Preview mode �� records reset after refresh');
     }
     await loadEntries();
     applyFormPreferences();
