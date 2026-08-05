@@ -129,7 +129,7 @@
     const shown = getFilteredEntries(allEntries).length;
     const pending = allEntries.filter((entry) => !entry.exportedAt).length;
     exportProgress.textContent = `当前显示 ${shown} 条 · 尚未导出 ${pending} 条`;
-    exportProgress.textContent = `${shown} shown �� ${allEntries.length} total �� ready to export`;
+    exportProgress.textContent = `${shown} shown  -  ${allEntries.length} total  -  ready to export`;
     exportProgress.textContent = `当前显示 ${shown} 条 · 尚未导出 ${pending} 条`;
     exportModal.hidden = false;
     document.body.style.overflow = 'hidden';
@@ -217,11 +217,11 @@
           `## ${index + 1}. ${row.image_file}`,
           '',
           `- ID: ${row.id}`,
-          `- Date: ${row.date || '��'}`,
-          `- Category: ${row.category || '��'}`,
-          `- Style: ${row.style || '��'}`,
-          `- Stall: ${row.stall || '��'}`,
-          `- Captured at: ${row.captured_at || '��'}`,
+          `- Date: ${row.date || ' - '}`,
+          `- Category: ${row.category || ' - '}`,
+          `- Style: ${row.style || ' - '}`,
+          `- Stall: ${row.stall || ' - '}`,
+          `- Captured at: ${row.captured_at || ' - '}`,
           ''
         );
       });
@@ -396,7 +396,7 @@
       return;
     }
     exportExcelBtn.disabled = true;
-    exportProgress.textContent = `Building Excel with ${entries.length} embedded images��`;
+    exportProgress.textContent = `Building Excel with ${entries.length} embedded images - `;
     try {
       const workbook = await createExcelWithImages(entries);
       const url = URL.createObjectURL(workbook);
@@ -413,7 +413,7 @@
       exportProgress.textContent = `已导出 ${entries.length} 条，并标记为“已导出”`;
       showToast('带图表格已下载');
       exportProgress.textContent = `${entries.length} records exported with embedded pictures`;
-      showToast('Excel with pictures downloaded ?');
+      showToast('Excel with pictures downloaded');
       exportProgress.textContent = `已导出 ${entries.length} 条，并标记为“已导出”`;
       showToast('带图表格已下载');
     } catch (error) {
@@ -439,7 +439,7 @@
           files.push({ name: 'images/' + rows[index].image_file, data: entry.image });
         }
       });
-      exportProgress.textContent = `Packing ${files.length - 1} images and CSV��`;
+      exportProgress.textContent = `Packing ${files.length - 1} images and CSV - `;
       const zip = await createStoredZip(files);
       const url = URL.createObjectURL(zip);
       const link = document.createElement('a');
@@ -493,7 +493,7 @@
         continue;
       }
 
-      exportProgress.textContent = `Exporting ${index + 1}/${entries.length} �� ${exportFileName(entry, index)}`;
+      exportProgress.textContent = `Exporting ${index + 1}/${entries.length}  -  ${exportFileName(entry, index)}`;
       const body = new FormData();
       body.append('file', image, exportFileName(entry, index));
       body.append('category', normalizeText(entry.category));
@@ -519,7 +519,7 @@
         lastFileToken = result.fileToken || '';
       } catch (error) {
         failures.push({ index: index + 1, error: error.message || 'Export failed' });
-        exportProgress.textContent = `#${index + 1} failed �� ${error.message || 'Export failed'}`;
+        exportProgress.textContent = `#${index + 1} failed  -  ${error.message || 'Export failed'}`;
       }
     }
 
@@ -527,9 +527,9 @@
     exportAllBtn.disabled = false;
     if (failures.length) {
       const summary = failures.map(f => `#${f.index}: ${f.error}`).join(' | ');
-      exportProgress.textContent = `${exported}/${entries.length} exported �� ${summary}`;
+      exportProgress.textContent = `${exported}/${entries.length} exported  -  ${summary}`;
     } else {
-      exportProgress.textContent = `${exported}/${entries.length} exported �� token: ${lastFileToken || 'n/a'}`;
+      exportProgress.textContent = `${exported}/${entries.length} exported  -  token: ${lastFileToken || 'n/a'}`;
     }
     showToast(failures.length ? 'Export finished with errors' : 'Exported to Feishu ?');
   }
@@ -1040,21 +1040,21 @@
       const upButton = document.createElement('button');
       upButton.className = 'row-action';
       upButton.type = 'button';
-      upButton.textContent = '��';
+      upButton.textContent = ' - ';
       upButton.disabled = index === 0;
       upButton.addEventListener('click', () => moveCategory(index, -1));
 
       const downButton = document.createElement('button');
       downButton.className = 'row-action';
       downButton.type = 'button';
-      downButton.textContent = '��';
+      downButton.textContent = ' - ';
       downButton.disabled = index === categories.length - 1;
       downButton.addEventListener('click', () => moveCategory(index, 1));
 
       const deleteButton = document.createElement('button');
       deleteButton.className = 'row-action delete';
       deleteButton.type = 'button';
-      deleteButton.textContent = '��';
+      deleteButton.textContent = ' - ';
       deleteButton.addEventListener('click', () => deleteCategory(index));
 
       row.append(input, upButton, downButton, deleteButton);
@@ -1116,21 +1116,21 @@
       const upButton = document.createElement('button');
       upButton.className = 'row-action';
       upButton.type = 'button';
-      upButton.textContent = '��';
+      upButton.textContent = ' - ';
       upButton.disabled = index === 0;
       upButton.addEventListener('click', () => moveManagedOption(config.field, index, -1));
 
       const downButton = document.createElement('button');
       downButton.className = 'row-action';
       downButton.type = 'button';
-      downButton.textContent = '��';
+      downButton.textContent = ' - ';
       downButton.disabled = index === config.values.length - 1;
       downButton.addEventListener('click', () => moveManagedOption(config.field, index, 1));
 
       const deleteButton = document.createElement('button');
       deleteButton.className = 'row-action delete';
       deleteButton.type = 'button';
-      deleteButton.textContent = '��';
+      deleteButton.textContent = ' - ';
       deleteButton.addEventListener('click', () => deleteManagedOption(config.field, name));
 
       row.append(input, renameButton, upButton, downButton, deleteButton);
@@ -1310,7 +1310,7 @@
     if (exportStatusFilter.value) activeLabels.push(exportStatusFilter.value === 'pending' ? '未导出' : '已导出');
 
     filterStatus.textContent = activeLabels.length
-      ? `${activeLabels.join(' �� ')} �� ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
+      ? `${activeLabels.join('  -  ')}  -  ${filteredCount} result${filteredCount === 1 ? '' : 's'}`
       : `Showing all ${totalCount} record${totalCount === 1 ? '' : 's'}`;
   }
 
@@ -1325,8 +1325,8 @@
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = isFiltered
-      ? 'No matching photos �� try another filter ?'
-      : 'No photos yet �� add your first one ?';
+      ? 'No matching photos  -  try another filter ?'
+      : 'No photos yet  -  add your first one ?';
     entryList.appendChild(empty);
   }
 
@@ -1373,7 +1373,7 @@
       deleteButton.className = 'delete-btn';
       deleteButton.type = 'button';
       deleteButton.setAttribute('aria-label', `Delete record from ${entry.date || 'unknown date'}`);
-      deleteButton.textContent = '��';
+      deleteButton.textContent = ' - ';
       deleteButton.addEventListener('click', async () => {
         if (!window.confirm('Delete this photo record?')) return;
         deleteButton.disabled = true;
@@ -1460,18 +1460,18 @@
     const from = cleanupFrom.value;
     const to = cleanupTo.value;
     const selected = entriesInDateRange(from, to);
-    const totalText = `${allEntries.length} saved �� ${formatBytes(totalStoredBytes())}`;
+    const totalText = `${allEntries.length} saved  -  ${formatBytes(totalStoredBytes())}`;
     if (!from || !to) {
-      cleanupSummary.textContent = `Choose both dates �� ${totalText}`;
+      cleanupSummary.textContent = `Choose both dates  -  ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
     if (from > to) {
-      cleanupSummary.textContent = `Start date must be before end date �� ${totalText}`;
+      cleanupSummary.textContent = `Start date must be before end date  -  ${totalText}`;
       deleteRangeBtn.disabled = true;
       return;
     }
-    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected �� ${formatBytes(totalStoredBytes(selected))} �� ${totalText}`;
+    cleanupSummary.textContent = `${selected.length} photo${selected.length === 1 ? '' : 's'} selected  -  ${formatBytes(totalStoredBytes(selected))}  -  ${totalText}`;
     deleteRangeBtn.disabled = selected.length === 0;
   }
 
@@ -1631,7 +1631,7 @@
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving��';
+    saveBtn.textContent = 'Saving...';
 
     try {
       const newEntry = {
@@ -1647,13 +1647,13 @@
       saveFormPreferences();
       resetImage();
       await loadEntries();
-      showToast(hiddenByCurrentFilters ? 'Saved �� hidden by current filters' : 'Saved ?');
+      showToast(hiddenByCurrentFilters ? 'Saved - hidden by current filters' : 'Saved');
     } catch (error) {
       if (error && error.name === 'QuotaExceededError') showToast('Device storage is full');
       else showToast(error.message || 'Save failed');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save ?';
+      saveBtn.textContent = 'Save';
     }
   });
 
@@ -1745,7 +1745,7 @@
     } catch (_) {
       useMemoryStore = true;
       dbPromise = null;
-      showToast('Preview mode �� records reset after refresh');
+      showToast('Preview mode  -  records reset after refresh');
     }
     await loadEntries();
     applyFormPreferences();
