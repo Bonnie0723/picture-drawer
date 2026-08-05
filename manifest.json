@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Picture Drawer",
   "short_name": "Pic Drawer",
-  "description": "Picture Drawer v10: a visual organizer with Shopee DTS lookup, cost calculation and secure Feishu export.",
+  "description": "Picture Drawer: photo records, embedded-image Excel backup tracking, and Shopee Thailand profit calculation.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

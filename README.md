@@ -1,124 +1,19 @@
 # Picture Drawer
 
-**Picture Drawer** is a mobile-first visual reference organizer for designers, ecommerce operators, product teams, and anyone who saves large numbers of images on a phone.
+手机端照片记录工具，数据保存在当前浏览器设备中。
 
-手机相册适合“保存图片”，但不适合快速回答这些问题：
+## 当前功能
 
-- 这张图属于什么**风格**？
-- 来自哪个**档口 / 供应商**？
-- 是哪一天收集的？
-- 想找某类参考图时，能不能立刻调出来？
+- 拍照或从相册添加图片
+- 按分类、档口、风格、日期整理和筛选
+- 导出包含图片的 Excel（.xlsx）
+- 导出后自动标记记录，支持筛选“未导出 / 已导出”，方便分批备份
+- Shopee 泰国价格与利润计算：自然、广告、达人三类订单互斥，并计算加权利润
 
-Picture Drawer 把零散图片整理成可检索的视觉资料库。
+## Shopee 默认模型
 
-## Core needs
+默认值来自 177 THB 手机壳案例：税前销售额 153 THB、平台预估收入 96 THB、成本 9 RMB、汇率 4.779 THB/RMB、货损 3%、ROAS 5、达人佣金 12%、订单占比 40% / 30% / 30%。实际使用时优先填写 Seller Centre 订单页显示的预估收入。
 
-- Collect images from the phone camera or photo album.
-- Organize each image by **Category**, **Style**, **Stall**, and **Date**.
-- Use editable dropdown options instead of repeatedly typing the same information.
-- Filter by category, style, stall, and date, including combined filters.
-- Retrieve previously collected visual references quickly during design, sourcing, product selection, or content planning.
-- Clean stored records by a selected date range.
-- Optionally keep only the latest 30 / 60 / 90 / 180 days of records.
-- Install the app on a phone home screen as a PWA.
+## 隐私
 
-## Typical use cases
-
-- Designers building a reusable visual inspiration library.
-- Ecommerce teams classifying product images and visual directions.
-- Phone-case sellers organizing styles such as cute, minimal, cartoon, INS, bow, transparent, metallic, and seasonal themes.
-- Tracking images collected from different wholesale stalls or suppliers.
-- Retrieving a specific image quickly by date, style, category, or stall.
-
-## Main features
-
-- **Camera and album import**
-- **Editable Category / Style / Stall options**
-- **Last selection memory** for faster batch entry
-- **Date, category, style, and stall filtering**
-- **Combined filtering**
-- **Date-range cleanup**
-- **Optional automatic retention rules**
-- **Local AI-friendly export to Markdown, JSON, and CSV**
-- **Optional secure export to a Feishu Drive folder**
-- **Shopee TH/VN DTS ship-by calculator**
-- **Editable Shopee cost and profit calculator**
-- **Local-first storage with IndexedDB**
-- **Installable mobile PWA**
-- **Pixel-style cat interface**
-
-## Data and privacy
-
-Picture Drawer is local-first. Records and compressed image copies are stored in the browser with IndexedDB.
-
-- Images are not uploaded to an external server by default.
-- Photos are sent to Feishu only when you explicitly start an export.
-- Deleting a Picture Drawer record does not delete the original image from the phone album.
-- Clearing browser or site data may remove locally stored records.
-
-## Product direction
-
-The product is designed around one core workflow:
-
-> Collect once → classify quickly → retrieve anytime.
-
-The goal is not to replace the phone album. It adds the structured layer that a normal phone album lacks.
-
-## Planned deployment
-
-The project is intended to be deployed through GitHub Pages and installed from the browser to the phone home screen.
-
----
-
-Built for visual collection, design reference management, ecommerce sourcing, and mobile image organization.
-
-## Feishu export backend
-
-The browser never receives the Feishu app secret. The `worker/` directory contains a small Cloudflare Worker that exchanges the app credentials for a tenant access token and uploads each selected JPG to a configured Feishu Drive folder.
-
-1. Create a Feishu custom app, enable Drive file upload permission, and add the app to the destination folder.
-2. In `worker/`, install dependencies and add the four secrets with `wrangler secret put`: `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_FOLDER_TOKEN`, and `EXPORT_TOKEN`.
-3. Set `ALLOWED_ORIGINS` in `worker/wrangler.jsonc` to the exact Picture Drawer site origin, then deploy the Worker.
-4. Open **EXPORT FEISHU** in Picture Drawer and enter the Worker URL and the same `EXPORT_TOKEN`.
-
-Exports run one image at a time and can include either all records or only the records shown by the current filters.
-
-
-
-## Reliable local export
-
-Open **EXPORT FEISHU**, then choose **MARKDOWN**, **JSON**, or **CSV**. These downloads use the records currently shown by the filters and run entirely in the browser. They do not require a Feishu account, Worker URL, access token, app secret, or network connection.
-
-- Markdown is convenient for pasting into an AI chat.
-- JSON preserves field names and is best for structured AI processing or automation.
-- CSV opens in spreadsheet tools and includes a UTF-8 BOM for Chinese text.
-- The metadata export names the matching image file, but images remain in the local Picture Drawer database.
-
-The previous Markdown button was visual only: no click handler or exporter existed in `app.js`. Version 19 wires the button correctly and adds JSON/CSV alternatives.
-
-## Feishu troubleshooting
-
-Feishu export is optional and depends on external configuration. Check `<WORKER_URL>/test-feishu` first. A successful token test proves only that the app credentials work; uploads also require the Drive upload permission, a valid folder token, and the app/bot to have access to that destination folder.
-
-Required Worker values: `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_FOLDER_TOKEN`, and `EXPORT_TOKEN`. `ALLOWED_ORIGINS` must exactly match the deployed Picture Drawer origin. After changing Worker settings, redeploy the Worker.
-
-
-## Image package export
-
-Version 20 adds **IMAGES + CSV (.ZIP)**. It creates one local ZIP containing:
-
-- `images/`: every JPG in the current filtered view
-- `picture-drawer.csv`: one metadata row per image, using the same image filename
-
-The package is generated entirely in the browser and does not depend on Feishu or any external service. Use **CSV ONLY** when the images are not needed.
-
-
-## Excel export with embedded pictures
-
-Version 21 adds **EXCEL WITH IMAGES (.XLSX)**. Each filtered record becomes one worksheet row:
-
-- Column A contains the picture as an embedded Excel drawing.
-- The remaining columns contain ID, date, category, style, stall, and the original image filename.
-- The header row is frozen, filters are enabled, and image rows are sized for readable thumbnails.
-
-Unlike CSV, XLSX supports embedded pictures. The workbook is generated locally in the browser and does not require Feishu.
+照片和记录默认只保存在当前设备的浏览器数据库中。导出在浏览器本地完成，不连接外部网盘。
