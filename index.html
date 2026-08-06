@@ -501,21 +501,21 @@
           <label for="category">Category</label>
           <div class="select-manage-wrap">
             <select class="select-arrow" id="category" aria-label="Category"></select>
-            <button class="manage-btn" type="button" id="manageCategoriesBtn" aria-label="Manage categories" title="Manage categories">...</button>
+            <button class="manage-btn" type="button" id="manageCategoriesBtn" aria-label="Manage categories" title="Manage categories">&#9998;</button>
           </div>
         </div>
         <div class="field">
           <label for="style">Style</label>
           <div class="select-manage-wrap">
             <select class="select-arrow" id="style" aria-label="Style"></select>
-            <button class="manage-btn" type="button" id="manageStylesBtn" aria-label="Manage style options" title="Manage style options">...</button>
+            <button class="manage-btn" type="button" id="manageStylesBtn" aria-label="Manage style options" title="Manage style options">&#9998;</button>
           </div>
         </div>
         <div class="field">
           <label for="stall">Stall</label>
           <div class="select-manage-wrap">
             <select class="select-arrow" id="stall" aria-label="Stall"></select>
-            <button class="manage-btn" type="button" id="manageStallsBtn" aria-label="Manage stall options" title="Manage stall options">...</button>
+            <button class="manage-btn" type="button" id="manageStallsBtn" aria-label="Manage stall options" title="Manage stall options">&#9998;</button>
           </div>
         </div>
         <div class="field">
@@ -590,7 +590,7 @@
       <div class="modal-body">
         <div class="category-add">
           <input type="text" id="newCategoryInput" maxlength="24" placeholder="New category name" />
-          <button type="button" id="addCategoryBtn">ADD</button>
+          <button type="button" id="addCategoryBtn" aria-label="Add category">+</button>
         </div>
         <div class="category-manager-list" id="categoryManagerList"></div>
         <p class="modal-note">Categories can be added, renamed, deleted and reordered. Deleting a category keeps its photos under "Uncategorized".</p>
@@ -611,7 +611,7 @@
         </div>
         <div class="category-add">
           <input type="text" id="newOptionInput" maxlength="40" placeholder="New option" />
-          <button type="button" id="addOptionBtn">ADD</button>
+          <button type="button" id="addOptionBtn" aria-label="Add option">+</button>
         </div>
         <div class="category-manager-list" id="optionManagerList"></div>
         <p class="modal-note">Add, rename, delete or reorder options. Renaming updates existing records. Deleting an option clears that field from affected records.</p>
@@ -673,12 +673,12 @@
         </div>
         <p class="modal-note">Downloaded records are marked Exported. Next time choose Not Exported to continue the backup.</p></div></section></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
   <script src="shopee-tools.js?v=23"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=24').catch(function () {});
+        navigator.serviceWorker.register('./sw.js?v=25').catch(function () {});
       });
     }
   </script>

@@ -1040,21 +1040,21 @@
       const upButton = document.createElement('button');
       upButton.className = 'row-action';
       upButton.type = 'button';
-      upButton.textContent = ' - ';
+      upButton.textContent = '\u2191';
       upButton.disabled = index === 0;
       upButton.addEventListener('click', () => moveCategory(index, -1));
 
       const downButton = document.createElement('button');
       downButton.className = 'row-action';
       downButton.type = 'button';
-      downButton.textContent = ' - ';
+      downButton.textContent = '\u2193';
       downButton.disabled = index === categories.length - 1;
       downButton.addEventListener('click', () => moveCategory(index, 1));
 
       const deleteButton = document.createElement('button');
       deleteButton.className = 'row-action delete';
       deleteButton.type = 'button';
-      deleteButton.textContent = ' - ';
+      deleteButton.textContent = '-';
       deleteButton.addEventListener('click', () => deleteCategory(index));
 
       row.append(input, upButton, downButton, deleteButton);
@@ -1110,27 +1110,27 @@
       const renameButton = document.createElement('button');
       renameButton.className = 'row-action';
       renameButton.type = 'button';
-      renameButton.textContent = '?';
+      renameButton.textContent = '\u2713';
       renameButton.addEventListener('click', () => renameManagedOption(config.field, name, input.value));
 
       const upButton = document.createElement('button');
       upButton.className = 'row-action';
       upButton.type = 'button';
-      upButton.textContent = ' - ';
+      upButton.textContent = '\u2191';
       upButton.disabled = index === 0;
       upButton.addEventListener('click', () => moveManagedOption(config.field, index, -1));
 
       const downButton = document.createElement('button');
       downButton.className = 'row-action';
       downButton.type = 'button';
-      downButton.textContent = ' - ';
+      downButton.textContent = '\u2193';
       downButton.disabled = index === config.values.length - 1;
       downButton.addEventListener('click', () => moveManagedOption(config.field, index, 1));
 
       const deleteButton = document.createElement('button');
       deleteButton.className = 'row-action delete';
       deleteButton.type = 'button';
-      deleteButton.textContent = ' - ';
+      deleteButton.textContent = '-';
       deleteButton.addEventListener('click', () => deleteManagedOption(config.field, name));
 
       row.append(input, renameButton, upButton, downButton, deleteButton);
@@ -1325,8 +1325,8 @@
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.textContent = isFiltered
-      ? 'No matching photos  -  try another filter ?'
-      : 'No photos yet  -  add your first one ?';
+      ? 'No matching photos - try another filter'
+      : 'No photos yet - add your first one';
     entryList.appendChild(empty);
   }
 
@@ -1373,7 +1373,7 @@
       deleteButton.className = 'delete-btn';
       deleteButton.type = 'button';
       deleteButton.setAttribute('aria-label', `Delete record from ${entry.date || 'unknown date'}`);
-      deleteButton.textContent = ' - ';
+      deleteButton.textContent = '-';
       deleteButton.addEventListener('click', async () => {
         if (!window.confirm('Delete this photo record?')) return;
         deleteButton.disabled = true;
