@@ -2,14 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#15121d" />
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="format-detection" content="telephone=no" />
-  <title>Picture Drawer v21</title>
-  <meta name="application-name" content="Picture Drawer v21" />
+  <title>Picture Drawer v26</title>
+  <meta name="application-name" content="Picture Drawer v26" />
   <style>
     :root {
       --bg: #12101a;
@@ -673,14 +676,21 @@
         </div>
         <p class="modal-note">Downloaded records are marked Exported. Next time choose Not Exported to continue the backup.</p></div></section></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=25"></script>
-  <script src="shopee-tools.js?v=23"></script>
+  <script src="app.js?v=26"></script>
+  <script src="shopee-tools.js?v=26"></script>
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./sw.js?v=25').catch(function () {});
-      });
-    }
+    window.addEventListener('load', async function () {
+      if (!('serviceWorker' in navigator) || !('caches' in window)) return;
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(function (registration) { return registration.unregister(); }));
+        const keys = await caches.keys();
+        await Promise.all(keys.map(function (key) { return caches.delete(key); }));
+        if (!new URL(location.href).searchParams.has('v26')) {
+          location.replace('./?v26=1');
+        }
+      } catch (_) {}
+    });
   </script>
 </body>
 </html>

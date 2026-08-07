@@ -3,7 +3,7 @@
   "name": "Picture Drawer",
   "short_name": "Pic Drawer",
   "description": "Picture Drawer: photo records, embedded-image Excel backup tracking, and Shopee Thailand profit calculation.",
-  "start_url": "./",
+  "start_url": "./?v26=1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#12101a",

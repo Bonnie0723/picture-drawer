@@ -1,10 +1,10 @@
-const CACHE_NAME = 'picture-drawer-v25';
+const CACHE_NAME = 'picture-drawer-v26';
 
 const APP_SHELL = [
   './',
   './index.html',
-  './app.js?v=25',
-  './shopee-tools.js?v=23',
+  './app.js?v=26',
+  './shopee-tools.js?v=26',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -61,19 +61,5 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || network;
-    })
-  );
+  event.respondWith(fetch(request, { cache: 'no-store' }).catch(() => caches.match(request)));
 });
