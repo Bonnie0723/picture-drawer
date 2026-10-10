@@ -495,9 +495,11 @@
       <div class="source-actions" aria-label="Photo source">
         <button class="source-btn" type="button" id="cameraBtn">Take Photo</button>
         <button class="source-btn album" type="button" id="albumBtn">Choose Album</button>
+        <button class="source-btn album" type="button" id="batchBtn">批量导入</button>
       </div>
       <input class="file-input-hidden" type="file" id="cameraInput" accept="image/*" capture="environment" />
       <input class="file-input-hidden" type="file" id="albumInput" accept="image/*" />
+      <input class="file-input-hidden" type="file" id="batchInput" accept="image/*" multiple />
 
       <div class="fields">
         <div class="field">
@@ -531,7 +533,7 @@
         <button class="btn btn-secondary" type="button" id="clearBtn" title="Clear the current form">Clear</button>
         <button class="btn btn-primary" type="button" id="saveBtn">Save</button>
       </div>
-      <p class="hold-tip">Selections stay after saving, so batch entry only needs a new photo.</p>
+      <p class="hold-tip">先选择档口/风格，再点「批量导入」。当前档口将用于整批图片；单张添加仍可使用。</p>
     </section>
 
     <section class="category-section" aria-labelledby="categoryBrowseTitle">
@@ -577,6 +579,9 @@
         <h2 class="section-title" id="recordsTitle">Saved Photos</h2>
         <div class="section-actions">
           <button class="storage-button export-button" type="button" id="openExportBtn">EXCEL WITH IMAGES</button>
+          <button class="storage-button" type="button" id="backupBtn">备份全部</button>
+          <button class="storage-button" type="button" id="restoreBtn">恢复备份</button>
+          <input class="file-input-hidden" type="file" id="restoreInput" accept=".json,application/json" />
           <button class="storage-button" type="button" id="openCleanupBtn">CLEAN STORAGE</button>
         </div>
       </div>
@@ -676,21 +681,15 @@
         </div>
         <p class="modal-note">Downloaded records are marked Exported. Next time choose Not Exported to continue the backup.</p></div></section></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="app.js?v=26"></script>
-  <script src="shopee-tools.js?v=26"></script>
+  <script src="app.js?v=27"></script>
+  <script src="shopee-tools.js?v=27"></script>
   <script>
-    window.addEventListener('load', async function () {
-      if (!('serviceWorker' in navigator) || !('caches' in window)) return;
-      try {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(function (registration) { return registration.unregister(); }));
-        const keys = await caches.keys();
-        await Promise.all(keys.map(function (key) { return caches.delete(key); }));
-        if (!new URL(location.href).searchParams.has('v26')) {
-          location.replace('./?v26=1');
-        }
-      } catch (_) {}
-    });
+    // Register the offline worker instead of unregistering it on every visit.
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('PWA registration failed:', error));
+      });
+    }
   </script>
 </body>
 </html>
