@@ -1602,6 +1602,89 @@
     }
   }
 
+
+  // Import many photos into the same stall in one operation.
+  const batchInput = $('batchInput');
+  const batchBtn = $('batchBtn');
+  batchBtn.addEventListener('click', () => batchInput.click());
+  batchInput.addEventListener('change', async () => {
+    const photos = Array.from(batchInput.files || []).filter(file => file.type.startsWith('image/'));
+    batchInput.value = '';
+    if (!photos.length) return;
+    const category = normalizeText(categoryInput.value);
+    const style = normalizeText(styleInput.value);
+    const stall = normalizeText(stallInput.value);
+    const date = dateInput.value;
+    if (!stall || !date) { showToast('请先选择档口和日期'); return; }
+    batchBtn.disabled = true;
+    let saved = 0, failed = 0;
+    try {
+      for (const file of photos) {
+        try {
+          batchBtn.textContent = '导入 ' + (saved + failed + 1) + '/' + photos.length;
+          const image = await prepareImage(file);
+          await addEntry({ image, category, style, stall, date, ts: Date.now() + saved });
+          saved++;
+        } catch (error) { failed++; console.warn('Batch import skipped:', file.name, error); }
+      }
+      saveFormPreferences();
+      await loadEntries();
+      showToast('已导入 ' + saved + ' 张' + (failed ? '，失败 ' + failed + ' 张' : ''));
+    } finally { batchBtn.disabled = false; batchBtn.textContent = '批量导入'; }
+  });
+
+  const backupBtn = $('backupBtn');
+  const restoreBtn = $('restoreBtn');
+  const restoreInput = $('restoreInput');
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('Cannot read picture'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  backupBtn.addEventListener('click', async () => {
+    backupBtn.disabled = true;
+    try {
+      const all = await getEntries();
+      const rows = [];
+      for (let i = 0; i < all.length; i++) {
+        backupBtn.textContent = '备份 ' + (i + 1) + '/' + all.length;
+        const { id, image, ...metadata } = all[i];
+        rows.push({ ...metadata, image: image instanceof Blob ? await blobToDataUrl(image) : null });
+      }
+      downloadTextFile(JSON.stringify({ schema: 'picture-drawer-full-backup/v1', createdAt: new Date().toISOString(), entries: rows }), 'picture-drawer-backup-' + localDateValue(new Date()) + '.json', 'application/json');
+      showToast('完整备份已下载，请上传到网盘保存');
+    } catch (error) { showToast('备份失败：' + error.message); }
+    finally { backupBtn.disabled = false; backupBtn.textContent = '备份全部'; }
+  });
+  restoreBtn.addEventListener('click', () => restoreInput.click());
+  restoreInput.addEventListener('change', async () => {
+    const file = restoreInput.files && restoreInput.files[0];
+    restoreInput.value = '';
+    if (!file) return;
+    restoreBtn.disabled = true;
+    try {
+      const backup = JSON.parse(await file.text());
+      if (backup.schema !== 'picture-drawer-full-backup/v1' || !Array.isArray(backup.entries)) throw new Error('不是兼容的完整备份');
+      if (!window.confirm('将恢复 ' + backup.entries.length + ' 条图片记录。现有记录不会被删除，确认继续？')) return;
+      let restored = 0, failed = 0;
+      for (const item of backup.entries) {
+        try {
+          if (typeof item.image !== 'string' || !/^data:image\//.test(item.image)) throw new Error('missing picture');
+          const image = dataUrlToBlob(item.image);
+          const { id, image: ignored, ...metadata } = item;
+          await addEntry({ ...metadata, image, ts: Number(metadata.ts) || Date.now() });
+          restored++;
+        } catch (error) { failed++; }
+      }
+      await loadEntries();
+      showToast('恢复 ' + restored + ' 条' + (failed ? '，跳过 ' + failed + ' 条' : ''));
+    } catch (error) { showToast('恢复失败：' + error.message); }
+    finally { restoreBtn.disabled = false; }
+  });
+
   imgArea.addEventListener('click', openAlbumPicker);
   imgArea.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
